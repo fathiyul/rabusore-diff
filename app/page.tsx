@@ -68,6 +68,7 @@ const normalizeText = (text: string, applyWordMap: any, wordMap: WordMap) => {
 
 export default function TranscriptionComparer() {
   const { panels, setPanels } = usePanelState();
+  const [debouncedPanels, setDebouncedPanels] = useState(panels);
   const [diffMode, setDiffMode] = useState<"word" | "char">("word");
   const [isNormalized, setIsNormalized] = useState(false);
   const { wordMap, applyWordMap } = useWordMap();
@@ -84,15 +85,25 @@ export default function TranscriptionComparer() {
   };
 
   useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedPanels(panels);
+    }, 500); // 500ms debounce delay
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [panels]);
+
+  useEffect(() => {
     const allSubs: Substitution[] = [];
-    const gtText = panels[0].text;
+    const gtText = debouncedPanels[0].text;
 
     // Normalize and strip speaker tags for substitution analysis
     const normalizedGt = stripSpeakerTags(
       normalizeText(gtText, applyWordMap, wordMap)
     );
 
-    panels.slice(1).forEach((panel) => {
+    debouncedPanels.slice(1).forEach((panel) => {
       if (panel.isVisible) {
         const normalizedHyp = stripSpeakerTags(
           normalizeText(panel.text, applyWordMap, wordMap)
@@ -102,7 +113,7 @@ export default function TranscriptionComparer() {
       }
     });
     setAllSuggestions(allSubs);
-  }, [panels, setAllSuggestions, applyWordMap, wordMap]);
+  }, [debouncedPanels, setAllSuggestions, applyWordMap, wordMap]);
 
   const gridColsClass =
     {
