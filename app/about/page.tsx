@@ -41,6 +41,11 @@ export default function AboutPage() {
               including substitutions, insertions, and deletions.
             </li>
             <li>
+              <span className="font-semibold">Diarization Error Rate (DER):</span> Calculates speaker turn errors based
+              on the sequence of speaker labels (e.g., `SPEAKER_01:`), providing metrics for speaker confusion, false
+              alarms, and missed speech.
+            </li>
+            <li>
               <span className="font-semibold">Normalized Mode:</span> Ignore case, punctuation, and apply custom word
               mappings for a more lenient comparison.
             </li>

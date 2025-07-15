@@ -173,3 +173,122 @@ export const calculateWer = (ref: string, hyp: string): WerMetrics => {
   const wer = (subs + dels + ins) / n
   return { wer: isFinite(wer) ? wer : 0, subs, ins, dels }
 }
+
+// New helper function to extract speaker sequence
+const extractSpeakerSequence = (text: string): string[] => {
+  const lines = text.split("\n")
+  const speakers: string[] = []
+  let lastSpeaker: string | null = null
+
+  for (const line of lines) {
+    // Check for a colon to identify a speaker tag
+    const colonIndex = line.indexOf(":")
+    if (colonIndex > 0) {
+      const speaker = line.substring(0, colonIndex).trim()
+      // Add speaker to the sequence if it's a new speaker
+      if (speaker !== lastSpeaker) {
+        speakers.push(speaker)
+        lastSpeaker = speaker
+      }
+    }
+  }
+  return speakers
+}
+
+export interface DerMetrics {
+  der: number
+  speakerError: number // Substitutions
+  falseAlarm: number // Insertions
+  missedSpeech: number // Deletions
+}
+
+// New calculateDer function based on speaker sequence comparison
+export const calculateDer = (ref: string, hyp: string): DerMetrics => {
+  const refSpeakers = extractSpeakerSequence(ref)
+  const hypSpeakers = extractSpeakerSequence(hyp)
+
+  const n = refSpeakers.length
+  const m = hypSpeakers.length
+
+  if (n === 0) {
+    return { der: m > 0 ? Number.POSITIVE_INFINITY : 0, speakerError: 0, falseAlarm: m, missedSpeech: 0 }
+  }
+
+  const dp: number[][] = Array(n + 1)
+    .fill(null)
+    .map(() => Array(m + 1).fill(0))
+  const ops: string[][] = Array(n + 1)
+    .fill(null)
+    .map(() => Array(m + 1).fill(""))
+
+  for (let i = 0; i <= n; i++) {
+    dp[i][0] = i
+    ops[i][0] = "D"
+  }
+  for (let j = 0; j <= m; j++) {
+    dp[0][j] = j
+    ops[0][j] = "I"
+  }
+  ops[0][0] = ""
+
+  for (let i = 1; i <= n; i++) {
+    for (let j = 1; j <= m; j++) {
+      const cost = refSpeakers[i - 1] === hypSpeakers[j - 1] ? 0 : 1
+      const delCost = dp[i - 1][j] + 1
+      const insCost = dp[i][j - 1] + 1
+      const subCost = dp[i - 1][j - 1] + cost
+
+      if (subCost <= insCost && subCost <= delCost) {
+        dp[i][j] = subCost
+        ops[i][j] = cost === 1 ? "S" : "M"
+      } else if (insCost < delCost) {
+        dp[i][j] = insCost
+        ops[i][j] = "I"
+      } else {
+        dp[i][j] = delCost
+        ops[i][j] = "D"
+      }
+    }
+  }
+
+  let i = n,
+    j = m
+  let speakerError = 0,
+    falseAlarm = 0,
+    missedSpeech = 0
+
+  while (i > 0 || j > 0) {
+    const op = ops[i]?.[j]
+    if (op === "S") {
+      speakerError++
+      i--
+      j--
+    } else if (op === "D") {
+      missedSpeech++
+      i--
+    } else if (op === "I") {
+      falseAlarm++
+      j--
+    } else {
+      // Match or start of grid
+      if (i > 0) i--
+      if (j > 0) j--
+    }
+  }
+
+  const totalErrors = speakerError + falseAlarm + missedSpeech
+  const der = n > 0 ? totalErrors / n : m > 0 ? Number.POSITIVE_INFINITY : 0
+
+  return { der: isFinite(der) ? der : 0, speakerError, falseAlarm, missedSpeech }
+}
+
+export const stripSpeakerTags = (text: string): string => {
+  return text
+    .split("\n")
+    .map((line) => {
+      const colonIndex = line.indexOf(":")
+      return colonIndex !== -1 ? line.substring(colonIndex + 1).trim() : line
+    })
+    .join(" ")
+    .trim()
+}

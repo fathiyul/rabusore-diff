@@ -15,19 +15,27 @@ const defaultPanels: PanelState[] = [
   {
     id: 1,
     title: "Ground Truth",
-    text: "The quick brown fox jumps over the lazy dog.",
+    text: `SPEAKER_01: Hi, how are you today?
+SPEAKER_02: I'm doing great, thanks for asking! How about you?
+SPEAKER_01: I'm well. I went to the park this morning.
+SPEAKER_02: Oh, that sounds lovely. Was it busy?`,
     isVisible: true,
   },
   {
     id: 2,
     title: "Hypothesis A",
-    text: "The quick brown fox jumped over the lazy cat.",
+    text: `SPEAKER_01: Hi, how are you today?
+SPEAKER_01: I'm doing great, thanks for asking! How about you?
+SPEAKER_01: I'm well. I went to the store this morning.
+SPEAKER_02: Oh, that sounds lovely. Was it busy there?`,
     isVisible: true,
   },
   {
     id: 3,
     title: "Hypothesis B",
-    text: "A quick brown fox leaps over the lazy dog.",
+    text: `SPEAKER_02: Hi, how are you?
+SPEAKER_02: I'm doing great, thanks for asking!
+SPEAKER_01: I am well. I went to the park this morning.`,
     isVisible: true,
   },
 ]

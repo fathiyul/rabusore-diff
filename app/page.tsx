@@ -7,7 +7,14 @@ import { Button } from "@/components/ui/button"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { computeDiffHtml, calculateWer, type WerMetrics } from "@/lib/diff"
+import {
+  computeDiffHtml,
+  calculateWer,
+  calculateDer,
+  type WerMetrics,
+  type DerMetrics,
+  stripSpeakerTags,
+} from "@/lib/diff"
 import { cn } from "@/lib/utils"
 import { Pencil, EyeOff, FileDiff } from "lucide-react"
 import Link from "next/link"
@@ -17,62 +24,40 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useWordMap, type WordMap } from "@/hooks/use-word-map"
 import { usePanelState } from "@/hooks/use-panel-state"
 
+const normalizeText = (text: string, applyWordMap: any, wordMap: WordMap) => {
+  const mappedText = applyWordMap(text, wordMap)
+  return mappedText
+    .split("\n")
+    .map((line) => {
+      const colonIndex = line.indexOf(":")
+      if (colonIndex === -1) {
+        // No speaker tag, normalize whole line
+        return line
+          .toLowerCase()
+          .replace(/[^\w\s]|_/g, "")
+          .replace(/\s+/g, " ")
+          .trim()
+      }
+
+      const speaker = line.substring(0, colonIndex + 1)
+      const utterance = line.substring(colonIndex + 1)
+
+      const normalizedUtterance = utterance
+        .toLowerCase()
+        .replace(/[^\w\s]|_/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+
+      return `${speaker} ${normalizedUtterance}`
+    })
+    .join("\n")
+}
+
 export default function TranscriptionComparer() {
   const { panels, setPanels } = usePanelState()
   const [diffMode, setDiffMode] = useState<"word" | "char">("word")
   const [isNormalized, setIsNormalized] = useState(false)
-  const { wordMap } = useWordMap()
-
-  const applyWordMap = (text: string, map: WordMap) => {
-    if (Object.keys(map).length === 0) return text
-
-    // Create a reverse map for efficient replacement: { source: target }
-    // e.g., { 'hello': 'halo', 'helo': 'halo' }
-    const reverseMap: Record<string, string> = {}
-    for (const target in map) {
-      for (const source of map[target]) {
-        reverseMap[source.toLowerCase()] = target.toLowerCase()
-      }
-    }
-
-    if (Object.keys(reverseMap).length === 0) return text
-
-    const regex = new RegExp(`\\b(${Object.keys(reverseMap).join("|")})\\b`, "gi")
-    return text.replace(regex, (matched) => reverseMap[matched.toLowerCase()] || matched)
-  }
-
-  const normalizeText = (text: string) => {
-    // First, apply the word map to the original text
-    const mappedText = applyWordMap(text, wordMap)
-    // Then, lowercase and remove punctuation
-    return mappedText
-      .toLowerCase()
-      .replace(/[^\w\s]|_/g, "")
-      .replace(/\s+/g, " ")
-      .trim()
-  }
-
-  const handleSetGroundTruth = (newGtIndex: number) => {
-    if (newGtIndex === 0) return // Already the ground truth
-    const newPanels = [...panels]
-    const newGtPanel = newPanels[newGtIndex]
-    const oldGtPanel = newPanels[0]
-    newPanels[0] = newGtPanel
-    newPanels[newGtIndex] = oldGtPanel
-    setPanels(newPanels)
-  }
-
-  const handleTextChange = (index: number, newText: string) => {
-    setPanels(panels.map((p, i) => (i === index ? { ...p, text: newText } : p)))
-  }
-
-  const handleTitleChange = (index: number, newTitle: string) => {
-    setPanels(panels.map((p, i) => (i === index ? { ...p, title: newTitle } : p)))
-  }
-
-  const handleVisibilityChange = (index: number) => {
-    setPanels(panels.map((p, i) => (i === index ? { ...p, isVisible: !p.isVisible } : p)))
-  }
+  const { wordMap, applyWordMap } = useWordMap()
 
   const groundTruthText = panels[0].text
   const visiblePanels = panels.filter((p) => p.isVisible)
@@ -86,6 +71,41 @@ export default function TranscriptionComparer() {
       2: "md:grid-cols-2",
       3: "md:grid-cols-3",
     }[visiblePanels.length] || "md:grid-cols-3"
+
+  const handleVisibilityChange = (index: number) => {
+    const newPanels = panels.map((panel, i) => ({
+      ...panel,
+      isVisible: i === index ? true : panel.isVisible,
+    }))
+    setPanels(newPanels)
+  }
+
+  const handleTextChange = (index: number, newText: string) => {
+    const newPanels = panels.map((panel, i) => ({
+      ...panel,
+      text: i === index ? newText : panel.text,
+    }))
+    setPanels(newPanels)
+  }
+
+  const handleTitleChange = (index: number, newTitle: string) => {
+    const newPanels = panels.map((panel, i) => ({
+      ...panel,
+      title: i === index ? newTitle : panel.title,
+    }))
+    setPanels(newPanels)
+  }
+
+  const handleSetGroundTruth = (indexToBecomeGT: number) => {
+    if (indexToBecomeGT === 0) return // Already the ground truth
+
+    setPanels((currentPanels) => {
+      const newPanels = [...currentPanels]
+      const itemToMove = newPanels.splice(indexToBecomeGT, 1)[0] // remove it
+      newPanels.unshift(itemToMove) // add it to the front
+      return newPanels
+    })
+  }
 
   return (
     <div className="flex flex-col h-screen bg-slate-50 font-sans p-4 gap-4">
@@ -156,7 +176,7 @@ export default function TranscriptionComparer() {
                 diffMode={diffMode}
                 canHide={canHidePanel}
                 isNormalized={isNormalized}
-                normalizeFn={normalizeText}
+                normalizeFn={(text: string) => normalizeText(text, applyWordMap, wordMap)}
               />
             ),
         )}
@@ -195,25 +215,42 @@ function TextPanel({
 }: TextPanelProps) {
   const [isEditMode, setIsEditMode] = useState(false)
 
+  const textForDisplay = useMemo(
+    () => (isNormalized ? normalizeFn(panel.text) : panel.text),
+    [isNormalized, normalizeFn, panel.text],
+  )
   const groundTruthForDisplay = useMemo(
     () => (isNormalized ? normalizeFn(groundTruthText) : groundTruthText),
     [isNormalized, normalizeFn, groundTruthText],
   )
 
-  const panelTextForDisplay = useMemo(
-    () => (isNormalized ? normalizeFn(panel.text) : panel.text),
-    [isNormalized, normalizeFn, panel.text],
-  )
-
   const diffHtml = useMemo(() => {
     if (isGroundTruth) return null
-    return computeDiffHtml(groundTruthForDisplay, panelTextForDisplay, diffMode)
-  }, [panelTextForDisplay, groundTruthForDisplay, diffMode, isGroundTruth])
 
-  const metrics: WerMetrics | null = useMemo(() => {
+    // Always use the display-ready texts which include speaker tags
+    // and are normalized if the mode is on.
+    return computeDiffHtml(groundTruthForDisplay, textForDisplay, diffMode)
+  }, [isGroundTruth, groundTruthForDisplay, textForDisplay, diffMode])
+
+  const werMetrics: WerMetrics | null = useMemo(() => {
     if (isGroundTruth) return null
-    return calculateWer(groundTruthForDisplay, panelTextForDisplay)
-  }, [panelTextForDisplay, groundTruthForDisplay, isGroundTruth])
+
+    // Always calculate WER on content only
+    const refContent = stripSpeakerTags(groundTruthText)
+    const hypContent = stripSpeakerTags(panel.text)
+
+    // Apply normalization if the mode is on
+    const finalRef = isNormalized ? normalizeFn(refContent) : refContent
+    const finalHyp = isNormalized ? normalizeFn(hypContent) : hypContent
+
+    return calculateWer(finalRef, finalHyp)
+  }, [isGroundTruth, isNormalized, groundTruthText, panel.text, normalizeFn])
+
+  const derMetrics: DerMetrics | null = useMemo(() => {
+    if (isGroundTruth) return null
+    // DER is always calculated on the original, non-normalized text.
+    return calculateDer(groundTruthText, panel.text)
+  }, [groundTruthText, panel.text, isGroundTruth])
 
   const isEditing = !isNormalized && (isGroundTruth || isEditMode)
 
@@ -265,33 +302,52 @@ function TextPanel({
             className="w-full h-full flex-1 overflow-y-auto p-2 border rounded-md bg-slate-50 text-sm whitespace-pre-wrap"
             dangerouslySetInnerHTML={{
               __html: isGroundTruth
-                ? panelTextForDisplay
-                : diffHtml || '<span class="text-gray-400">No difference.</span>',
+                ? textForDisplay.replace(/\n/g, "<br />")
+                : diffHtml?.replace(/\n/g, "<br />") || '<span class="text-gray-400">No difference.</span>',
             }}
           />
         )}
       </CardContent>
-      <CardFooter className="flex-shrink-0 flex flex-col items-start gap-2 pt-4 border-t">
-        {!isGroundTruth && metrics ? (
+      <CardFooter className="flex-shrink-0 flex flex-col items-start gap-4 pt-4 border-t">
+        {!isGroundTruth && werMetrics ? (
           <div className="text-sm text-gray-700 w-full">
-            <p className="font-semibold">Metrics vs. Ground Truth:</p>
+            <p className="font-semibold">Word Error Rate (WER):</p>
             <div className="flex justify-between items-center text-xs mt-1">
               <span>
-                WER: <span className="font-bold">{(metrics.wer * 100).toFixed(2)}%</span>
+                WER: <span className="font-bold">{(werMetrics.wer * 100).toFixed(2)}%</span>
               </span>
               <span>
-                Substitutions: <span className="font-bold text-orange-500">{metrics.subs}</span>
+                Substitutions: <span className="font-bold text-orange-500">{werMetrics.subs}</span>
               </span>
               <span>
-                Insertions: <span className="font-bold text-blue-500">{metrics.ins}</span>
+                Insertions: <span className="font-bold text-blue-500">{werMetrics.ins}</span>
               </span>
               <span>
-                Deletions: <span className="font-bold text-red-500">{metrics.dels}</span>
+                Deletions: <span className="font-bold text-red-500">{werMetrics.dels}</span>
               </span>
             </div>
           </div>
         ) : (
           <div className="text-sm text-gray-400">This is the Ground Truth text.</div>
+        )}
+        {!isGroundTruth && derMetrics && (
+          <div className="text-sm text-gray-700 w-full">
+            <p className="font-semibold">Diarization Error Rate (DER):</p>
+            <div className="flex justify-between items-center text-xs mt-1">
+              <span>
+                DER: <span className="font-bold">{(derMetrics.der * 100).toFixed(2)}%</span>
+              </span>
+              <span>
+                Speaker Error: <span className="font-bold text-purple-500">{derMetrics.speakerError}</span>
+              </span>
+              <span>
+                False Alarm: <span className="font-bold text-blue-500">{derMetrics.falseAlarm}</span>
+              </span>
+              <span>
+                Missed Speech: <span className="font-bold text-red-500">{derMetrics.missedSpeech}</span>
+              </span>
+            </div>
+          </div>
         )}
       </CardFooter>
     </Card>

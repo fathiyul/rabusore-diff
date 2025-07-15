@@ -1,13 +1,13 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useRef } from "react"
 import Link from "next/link"
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
-import { ArrowLeft, Trash2, X, PlusCircle } from "lucide-react"
+import { ArrowLeft, Trash2, X, PlusCircle, Upload, Download } from "lucide-react"
 import { useWordMap } from "@/hooks/use-word-map"
 import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -51,9 +51,10 @@ function AddSourcePopover({ target, onAdd }: { target: string; onAdd: (source: s
 }
 
 export default function WordMapPage() {
-  const { wordMap, addMapping, removeSource, removeTarget } = useWordMap()
+  const { wordMap, addMapping, removeSource, removeTarget, replaceWordMap } = useWordMap()
   const [source, setSource] = useState("")
   const [target, setTarget] = useState("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleAddMapping = (e: React.FormEvent) => {
     e.preventDefault()
@@ -62,11 +63,61 @@ export default function WordMapPage() {
     setTarget("")
   }
 
+  const handleExport = () => {
+    const jsonString = JSON.stringify(wordMap, null, 2)
+    const blob = new Blob([jsonString], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "rabusore-wordmap.json"
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result
+        if (typeof text === "string") {
+          const importedMap = JSON.parse(text)
+          replaceWordMap(importedMap)
+        }
+      } catch (error) {
+        alert("Failed to parse JSON file.")
+        console.error("Import error:", error)
+      }
+    }
+    reader.readAsText(file)
+    // Reset file input
+    event.target.value = ""
+  }
+
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-slate-50 p-4">
       <Card className="w-full max-w-3xl shadow-md">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-2xl font-bold text-amber-700">Word Map</CardTitle>
+          <div className="flex items-center gap-2">
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
+            <Button variant="outline" size="sm" onClick={handleImportClick}>
+              <Upload className="mr-2 h-4 w-4" />
+              Import JSON
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              <Download className="mr-2 h-4 w-4" />
+              Export JSON
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           <p className="text-slate-600">

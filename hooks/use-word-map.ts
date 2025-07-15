@@ -9,7 +9,7 @@ const STORAGE_KEY = "rabusore-word-map"
 export type WordMap = Record<string, string[]>
 
 export function useWordMap() {
-  const [wordMap, setWordMap] = useState<WordMap>({})
+  const [wordMap, setWordMapState] = useState<WordMap>({})
 
   useEffect(() => {
     try {
@@ -17,7 +17,7 @@ export function useWordMap() {
       if (item) {
         const parsedData = JSON.parse(item)
         if (Object.keys(parsedData).length === 0) {
-          setWordMap({})
+          setWordMapState({})
           return
         }
 
@@ -39,10 +39,10 @@ export function useWordMap() {
           }
           // Save the newly formatted map back to localStorage
           window.localStorage.setItem(STORAGE_KEY, JSON.stringify(newMap))
-          setWordMap(newMap)
+          setWordMapState(newMap)
         } else {
           // Data is already in the new format or is empty
-          setWordMap(parsedData)
+          setWordMapState(parsedData)
         }
       }
     } catch (error) {
@@ -79,7 +79,7 @@ export function useWordMap() {
         newMap[TGT] = [SRC]
       }
 
-      setWordMap(newMap)
+      setWordMapState(newMap)
       updateLocalStorage(newMap)
     },
     [wordMap],
@@ -97,7 +97,7 @@ export function useWordMap() {
         if (newMap[TGT].length === 0) {
           delete newMap[TGT]
         }
-        setWordMap(newMap)
+        setWordMapState(newMap)
         updateLocalStorage(newMap)
       }
     },
@@ -108,11 +108,55 @@ export function useWordMap() {
     (targetToRemove: string) => {
       const newMap = { ...wordMap }
       delete newMap[targetToRemove.toLowerCase()]
-      setWordMap(newMap)
+      setWordMapState(newMap)
       updateLocalStorage(newMap)
     },
     [wordMap],
   )
 
-  return { wordMap, addMapping, removeSource, removeTarget }
+  const applyWordMap = useCallback((text: string, map: WordMap): string => {
+    if (!text || Object.keys(map).length === 0) {
+      return text
+    }
+
+    const replacementMap: Record<string, string> = {}
+    for (const target in map) {
+      for (const source of map[target]) {
+        replacementMap[source] = target
+      }
+    }
+
+    const sources = Object.keys(replacementMap)
+    if (sources.length === 0) {
+      return text
+    }
+
+    sources.sort((a, b) => b.length - a.length)
+
+    const escapedSources = sources.map((source) => source.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&"))
+    const regex = new RegExp(`\\b(${escapedSources.join("|")})\\b`, "gi")
+
+    return text.replace(regex, (matched) => {
+      const lowerMatched = matched.toLowerCase()
+      return replacementMap[lowerMatched]
+    })
+  }, [])
+
+  const replaceWordMap = useCallback((newMap: WordMap) => {
+    if (typeof newMap === "object" && newMap !== null) {
+      // Basic validation
+      const isValid = Object.entries(newMap).every(
+        ([key, value]) => typeof key === "string" && Array.isArray(value) && value.every((v) => typeof v === "string"),
+      )
+      if (isValid) {
+        setWordMapState(newMap)
+        updateLocalStorage(newMap)
+      } else {
+        alert("Invalid JSON format for word map.")
+        console.error("Invalid JSON format for word map.")
+      }
+    }
+  }, [])
+
+  return { wordMap, addMapping, removeSource, removeTarget, applyWordMap, replaceWordMap }
 }
