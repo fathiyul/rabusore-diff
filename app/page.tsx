@@ -312,7 +312,7 @@ function TextPanel({
         {!isGroundTruth && werMetrics ? (
           <div className="text-sm text-gray-700 w-full">
             <p className="font-semibold">Word Error Rate (WER):</p>
-            <div className="flex justify-between items-center text-xs mt-1">
+            <div className="grid grid-cols-4 gap-4 text-xs mt-1">
               <span>
                 WER: <span className="font-bold">{(werMetrics.wer * 100).toFixed(2)}%</span>
               </span>
@@ -333,7 +333,7 @@ function TextPanel({
         {!isGroundTruth && derMetrics && (
           <div className="text-sm text-gray-700 w-full">
             <p className="font-semibold">Diarization Error Rate (DER):</p>
-            <div className="flex justify-between items-center text-xs mt-1">
+            <div className="grid grid-cols-4 gap-4 text-xs mt-1">
               <span>
                 DER: <span className="font-bold">{(derMetrics.der * 100).toFixed(2)}%</span>
               </span>

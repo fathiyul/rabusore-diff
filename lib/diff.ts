@@ -69,7 +69,7 @@ export const computeDiffHtml = (baseText: string, newText: string, mode: "char" 
 
     return diffs
       .map(([type, text]) => {
-        if (type === -1) return `<span style="background-color: #fecaca; text-decoration: line-through;">${text}</span>`
+        if (type === -1) return `<span style="background-color: #fecaca;">${text}</span>`
         if (type === 1) return `<span style="background-color: #bfdbfe;">${text}</span>`
         return text
       })
@@ -83,7 +83,7 @@ export const computeDiffHtml = (baseText: string, newText: string, mode: "char" 
     return diffs
       .map((diff) => {
         if (diff.type === "delete") {
-          return `<span style="background-color: #fecaca; text-decoration: line-through;">${diff.items.join("")}</span>`
+          return `<span style="background-color: #fecaca;">${diff.items.join("")}</span>`
         }
         if (diff.type === "insert") {
           return `<span style="background-color: #bfdbfe;">${diff.items.join("")}</span>`
