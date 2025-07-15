@@ -86,14 +86,23 @@ export default function TranscriptionComparer() {
   useEffect(() => {
     const allSubs: Substitution[] = [];
     const gtText = panels[0].text;
+
+    // Normalize and strip speaker tags for substitution analysis
+    const normalizedGt = stripSpeakerTags(
+      normalizeText(gtText, applyWordMap, wordMap)
+    );
+
     panels.slice(1).forEach((panel) => {
       if (panel.isVisible) {
-        const subs = extractSubstitutions(gtText, panel.text);
+        const normalizedHyp = stripSpeakerTags(
+          normalizeText(panel.text, applyWordMap, wordMap)
+        );
+        const subs = extractSubstitutions(normalizedGt, normalizedHyp);
         allSubs.push(...subs);
       }
     });
     setAllSuggestions(allSubs);
-  }, [panels, setAllSuggestions]);
+  }, [panels, setAllSuggestions, applyWordMap, wordMap]);
 
   const gridColsClass =
     {
