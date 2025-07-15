@@ -28,7 +28,7 @@ export default function TranscriptionComparer() {
   const [panels, setPanels] = useState<PanelState[]>([
     {
       id: 1,
-      title: "Text A (Ground Truth)",
+      title: "Text A",
       text: "The quick brown fox jumps over the lazy dog.",
       isVisible: true,
     },
