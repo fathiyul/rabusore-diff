@@ -11,7 +11,7 @@ export interface PanelState {
   isVisible: boolean;
 }
 
-const defaultPanels: PanelState[] = [
+export const defaultPanels: PanelState[] = [
   {
     id: 1,
     title: "Text A",

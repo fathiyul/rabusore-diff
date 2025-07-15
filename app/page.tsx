@@ -34,7 +34,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useWordMap, type WordMap } from "@/hooks/use-word-map";
-import { usePanelState } from "@/hooks/use-panel-state";
+import { usePanelState, defaultPanels } from "@/hooks/use-panel-state";
 import { useSuggestedMaps } from "@/hooks/use-suggested-maps";
 
 const normalizeText = (text: string, applyWordMap: any, wordMap: WordMap) => {
@@ -80,8 +80,7 @@ export default function TranscriptionComparer() {
   const canHidePanel = visiblePanels.length > 2;
 
   const handleClearAll = () => {
-    const newPanels = panels.map((p) => ({ ...p, text: "" }));
-    setPanels(newPanels);
+    setPanels(defaultPanels);
   };
 
   useEffect(() => {
