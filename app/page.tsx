@@ -75,7 +75,7 @@ export default function TranscriptionComparer() {
   const handleVisibilityChange = (index: number) => {
     const newPanels = panels.map((panel, i) => ({
       ...panel,
-      isVisible: i === index ? true : panel.isVisible,
+      isVisible: i === index ? !panel.isVisible : panel.isVisible,
     }))
     setPanels(newPanels)
   }
@@ -96,14 +96,16 @@ export default function TranscriptionComparer() {
     setPanels(newPanels)
   }
 
-  const handleSetGroundTruth = (indexToBecomeGT: number) => {
-    if (indexToBecomeGT === 0) return // Already the ground truth
-
+  const handleSetGroundTruth = (panelId: number) => {
     setPanels((currentPanels) => {
-      const newPanels = [...currentPanels]
-      const itemToMove = newPanels.splice(indexToBecomeGT, 1)[0] // remove it
-      newPanels.unshift(itemToMove) // add it to the front
-      return newPanels
+      const panelIndex = currentPanels.findIndex((p) => p.id === panelId)
+      if (panelIndex === 0 || panelIndex === -1) {
+        return currentPanels
+      }
+
+      const panelToMove = currentPanels[panelIndex]
+      const remainingPanels = currentPanels.filter((p) => p.id !== panelId)
+      return [panelToMove, ...remainingPanels]
     })
   }
 
@@ -165,13 +167,12 @@ export default function TranscriptionComparer() {
             panel.isVisible && (
               <TextPanel
                 key={panel.id}
-                index={index}
                 panel={panel}
                 isGroundTruth={index === 0}
                 onTextChange={(newText) => handleTextChange(index, newText)}
                 onTitleChange={(newTitle) => handleTitleChange(index, newTitle)}
                 onVisibilityChange={() => handleVisibilityChange(index)}
-                onSetAsGroundTruth={() => handleSetGroundTruth(index)}
+                onSetAsGroundTruth={() => handleSetGroundTruth(panel.id)}
                 groundTruthText={groundTruthText}
                 diffMode={diffMode}
                 canHide={canHidePanel}
@@ -186,7 +187,6 @@ export default function TranscriptionComparer() {
 }
 
 interface TextPanelProps {
-  index: number
   panel: any // PanelState
   isGroundTruth: boolean
   onTextChange: (newText: string) => void
@@ -294,12 +294,12 @@ function TextPanel({
           <Textarea
             value={panel.text}
             onChange={(e) => onTextChange(e.target.value)}
-            className="w-full h-full flex-1 resize-none text-base"
+            className="w-full flex-1 resize-none text-base"
             spellCheck={false}
           />
         ) : (
           <div
-            className="w-full h-full flex-1 overflow-y-auto p-2 border rounded-md bg-slate-50 text-sm whitespace-pre-wrap"
+            className="w-full flex-1 overflow-y-auto p-2 border rounded-md bg-slate-50 text-sm whitespace-pre-wrap"
             dangerouslySetInnerHTML={{
               __html: isGroundTruth
                 ? textForDisplay.replace(/\n/g, "<br />")

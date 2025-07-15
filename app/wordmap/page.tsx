@@ -73,7 +73,8 @@ export default function WordMapPage() {
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    // Add a delay before revoking the URL to prevent race conditions
+    setTimeout(() => URL.revokeObjectURL(url), 100)
   }
 
   const handleImportClick = () => {
