@@ -12,6 +12,12 @@ export interface WerMetrics {
   dels: number
 }
 
+// At the top of the file, add the new Substitution interface
+export interface Substitution {
+  source: string // from hypothesis (new text)
+  target: string // from reference (base text)
+}
+
 const computeWordDiff = (oldWords: string[], newWords: string[]): DiffOp[] => {
   const m = oldWords.length
   const n = newWords.length
@@ -92,6 +98,36 @@ export const computeDiffHtml = (baseText: string, newText: string, mode: "char" 
       })
       .join("")
   }
+}
+
+// After the computeDiffHtml function, add the new extractSubstitutions function
+export const extractSubstitutions = (baseText: string, newText: string): Substitution[] => {
+  const splitIntoWords = (text: string): string[] => text.split(/(\s+)/).filter((part) => part.length > 0)
+  const oldWords = splitIntoWords(baseText)
+  const newWords = splitIntoWords(newText)
+  const diffs = computeWordDiff(oldWords, newWords)
+
+  const substitutions: Substitution[] = []
+  for (let i = 0; i < diffs.length; i++) {
+    const currentOp = diffs[i]
+    const nextOp = diffs[i + 1]
+
+    // Check for substitution: a delete followed by an insert
+    if (currentOp.type === "delete" && nextOp && nextOp.type === "insert") {
+      const deletedText = currentOp.items.join("").trim()
+      const insertedText = nextOp.items.join("").trim()
+
+      // Only create the interactive element if both parts are non-empty words
+      if (deletedText && insertedText && !/\s/.test(deletedText) && !/\s/.test(insertedText)) {
+        substitutions.push({
+          source: insertedText,
+          target: deletedText,
+        })
+        i++ // Skip the next operation as it's already processed
+      }
+    }
+  }
+  return substitutions
 }
 
 export const calculateWer = (ref: string, hyp: string): WerMetrics => {

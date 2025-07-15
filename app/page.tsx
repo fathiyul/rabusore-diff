@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
@@ -11,8 +11,10 @@ import {
   computeDiffHtml,
   calculateWer,
   calculateDer,
+  extractSubstitutions,
   type WerMetrics,
   type DerMetrics,
+  type Substitution,
   stripSpeakerTags,
 } from "@/lib/diff"
 import { cn } from "@/lib/utils"
@@ -23,6 +25,7 @@ import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useWordMap, type WordMap } from "@/hooks/use-word-map"
 import { usePanelState } from "@/hooks/use-panel-state"
+import { useSuggestedMaps } from "@/hooks/use-suggested-maps"
 
 const normalizeText = (text: string, applyWordMap: any, wordMap: WordMap) => {
   const mappedText = applyWordMap(text, wordMap)
@@ -58,12 +61,25 @@ export default function TranscriptionComparer() {
   const [diffMode, setDiffMode] = useState<"word" | "char">("word")
   const [isNormalized, setIsNormalized] = useState(false)
   const { wordMap, applyWordMap } = useWordMap()
+  const { setAllSuggestions } = useSuggestedMaps()
 
   const groundTruthText = panels[0].text
   const visiblePanels = panels.filter((p) => p.isVisible)
   const hiddenPanel = panels.find((p) => !p.isVisible)
   const hiddenPanelIndex = panels.findIndex((p) => !p.isVisible)
   const canHidePanel = visiblePanels.length > 2
+
+  useEffect(() => {
+    const allSubs: Substitution[] = []
+    const gtText = panels[0].text
+    panels.slice(1).forEach((panel) => {
+      if (panel.isVisible) {
+        const subs = extractSubstitutions(gtText, panel.text)
+        allSubs.push(...subs)
+      }
+    })
+    setAllSuggestions(allSubs)
+  }, [panels, setAllSuggestions])
 
   const gridColsClass =
     {
