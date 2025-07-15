@@ -25,8 +25,8 @@ export default function AboutPage() {
           <h3 className="text-lg font-semibold text-slate-800 pt-2">Key Features:</h3>
           <ul className="list-disc list-inside space-y-2">
             <li>
-              <span className="font-semibold">Multi-Panel View:</span> Compare up to two hypothesis texts against a
-              ground truth simultaneously.
+              <span className="font-semibold">Multi-Panel Comparison:</span> Compare up to two hypothesis texts against
+              a ground truth simultaneously.
             </li>
             <li>
               <span className="font-semibold">Dynamic Ground Truth:</span> Easily designate any panel as the ground
@@ -34,15 +34,19 @@ export default function AboutPage() {
             </li>
             <li>
               <span className="font-semibold">Word & Character Diffing:</span> Switch between word-level and
-              character-level difference highlighting to suit your needs.
+              character-level difference highlighting.
             </li>
             <li>
               <span className="font-semibold">Word Error Rate (WER) Metrics:</span> Instantly see key accuracy metrics,
-              including substitutions, insertions, and deletions, for each hypothesis.
+              including substitutions, insertions, and deletions.
             </li>
             <li>
-              <span className="font-semibold">Customizable Workspace:</span> Rename panels and toggle their visibility
-              to create a workspace that works for you.
+              <span className="font-semibold">Normalized Mode:</span> Ignore case, punctuation, and apply custom word
+              mappings for a more lenient comparison.
+            </li>
+            <li>
+              <span className="font-semibold">Custom Word Map:</span> Define your own word equivalences (e.g., "color"
+              vs "colour") on a dedicated page to refine accuracy metrics.
             </li>
           </ul>
         </CardContent>

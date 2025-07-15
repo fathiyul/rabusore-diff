@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useMemo, useState } from "react"
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
@@ -15,44 +15,30 @@ import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useWordMap, type WordMap } from "@/hooks/use-word-map"
-
-interface PanelState {
-  id: number
-  title: string
-  text: string
-  isVisible: boolean
-}
+import { usePanelState } from "@/hooks/use-panel-state"
 
 export default function TranscriptionComparer() {
-  const [panels, setPanels] = useState<PanelState[]>([
-    {
-      id: 1,
-      title: "Text A",
-      text: "The quick brown fox jumps over the lazy dog.",
-      isVisible: true,
-    },
-    {
-      id: 2,
-      title: "Text B",
-      text: "The quick brown fox jumped over the lazy cat.",
-      isVisible: true,
-    },
-    {
-      id: 3,
-      title: "Text C",
-      text: "A quick brown fox leaps over the lazy dog.",
-      isVisible: true,
-    },
-  ])
+  const { panels, setPanels } = usePanelState()
   const [diffMode, setDiffMode] = useState<"word" | "char">("word")
   const [isNormalized, setIsNormalized] = useState(false)
   const { wordMap } = useWordMap()
 
   const applyWordMap = (text: string, map: WordMap) => {
     if (Object.keys(map).length === 0) return text
-    // Create a regex to match whole words from the map keys
-    const regex = new RegExp(`\\b(${Object.keys(map).join("|")})\\b`, "gi")
-    return text.replace(regex, (matched) => map[matched.toLowerCase()] || matched)
+
+    // Create a reverse map for efficient replacement: { source: target }
+    // e.g., { 'hello': 'halo', 'helo': 'halo' }
+    const reverseMap: Record<string, string> = {}
+    for (const target in map) {
+      for (const source of map[target]) {
+        reverseMap[source.toLowerCase()] = target.toLowerCase()
+      }
+    }
+
+    if (Object.keys(reverseMap).length === 0) return text
+
+    const regex = new RegExp(`\\b(${Object.keys(reverseMap).join("|")})\\b`, "gi")
+    return text.replace(regex, (matched) => reverseMap[matched.toLowerCase()] || matched)
   }
 
   const normalizeText = (text: string) => {
@@ -181,7 +167,7 @@ export default function TranscriptionComparer() {
 
 interface TextPanelProps {
   index: number
-  panel: PanelState
+  panel: any // PanelState
   isGroundTruth: boolean
   onTextChange: (newText: string) => void
   onTitleChange: (newTitle: string) => void
