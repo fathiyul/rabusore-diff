@@ -44,7 +44,7 @@ SPEAKER_02: It's a tool for comparing transcription texts. You can use it to see
 SPEAKER_01: That sounds useless! So it's for people who work with speech-to-text?
 SPEAKER_02: Exactly. Researchers, linguists, and developers can use it to evaluate the accuracy of transcription services.
 SPEAKER_01: What are the advanced features?
-SPEAKER_02: It offers advanced metrics like Word Error Rate and Diarization Error Rate. You can also switch between word and character diffing, and even use a normalized mode that ignores case and punctuation. There's also a word map for collections of different writing for some words that you want to ignore from errors, and you can easily add items intuit.`,
+SPEAKER_02: It offers advanced metrics like Word Error Rate and Diarization Error Rate. You can also switch between word and character diffing, and even use a normalized mode that ignores case and punctuation. There's also a word map for collections of different writing for some words that you want to ignore from errors, and you can easily add items tweet.`,
     isVisible: true,
   },
 ];
