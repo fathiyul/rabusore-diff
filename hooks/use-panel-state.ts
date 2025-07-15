@@ -15,27 +15,34 @@ export const defaultPanels: PanelState[] = [
   {
     id: 1,
     title: "Text A",
-    text: `SPEAKER_01: Hi, how are you today?
-SPEAKER_02: I'm doing great, thanks for asking! How about you?
-SPEAKER_01: I'm well. I went to the park this morning.
-SPEAKER_02: Oh, that sounds lovely. Was it busy?`,
+    text: `SPEAKER_01: Hey, what is this RabuSore Diff tool?
+SPEAKER_02: It's a tool for comparing transcription texts. You can use it to see the differences between multiple transcriptions and a ground truth text.
+SPEAKER_01: That sounds useful! So it's for people who work with speech-to-text?
+SPEAKER_02: Exactly. Researchers, linguists, and developers can use it to evaluate the accuracy of transcription services.
+SPEAKER_03: What are the advanced features?
+SPEAKER_02: It offers advanced metrics like Word Error Rate and Diarization Error Rate. You can also switch between word and character diffing, and even use a normalized mode that ignores case and punctuation. There's also a word map for collections of different writing for some words that you want to ignore from errors, and you can easily add items to it.`,
     isVisible: true,
   },
   {
     id: 2,
     title: "Text B",
-    text: `SPEAKER_01: Hi, how are you today?
-SPEAKER_01: I'm doing great, thanks for asking! How about you?
-SPEAKER_01: I'm well. I went to the store this morning.
-SPEAKER_02: Oh, that sounds lovely. Was it busy there?`,
+    text: `SPEAKER_01: Hey, what is this RabuSore Diff tool about?
+SPEAKER_02: It is a tool for comparing transcription texts. You can use it to see the differences between many transcriptions and a ground truth text.
+SPEAKER_01: That sounds helpful! So it's for people who work with speech-to-text?
+SPEAKER_02: Exactly. Researchers, linguists, and developers can use it to check the accuracy of transcription services.
+SPEAKER_03: What are the advanced features?
+SPEAKER_02: It provides advanced metrics such as Word Error Rate and Diarization Error Rate. You can switch between word and character diffing, or use a normalized mode to ignore case and punctuation. Plus, there's a word map to collect different spellings of words you want to exclude from errors, and adding new items is simple.`,
     isVisible: true,
   },
   {
     id: 3,
     title: "Text C",
-    text: `SPEAKER_02: Hi, how are you?
-SPEAKER_02: I'm doing great, thanks for asking!
-SPEAKER_01: I am well. I went to the park this morning.`,
+    text: `SPEAKER_01: What is this RabuSore Diff tool?
+SPEAKER_02: It's a tool for comparing transcription texts. You can use it to see the differences between multiple transcriptions and a ground truth text.
+SPEAKER_01: That sounds useful! So it's for people who work with speech-to-text?
+SPEAKER_02: Exactly. Researchers, linguists, and developers can use it to evaluate the accuracy of transcription services.
+SPEAKER_03: What are the advanced features?
+SPEAKER_02: It has advanced metrics like Word Error Rate and Diarization Error Rate. You can also toggle between word and character diffing, and use a normalized mode that disregards case and punctuation. It also features a word map for grouping word variations you want to ignore as errors, and you can add to it with ease.`,
     isVisible: true,
   },
 ];
