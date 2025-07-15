@@ -79,7 +79,7 @@ export default function TranscriptionComparer() {
   const hiddenPanelIndex = panels.findIndex((p) => !p.isVisible);
   const canHidePanel = visiblePanels.length > 2;
 
-  const handleClearAll = () => {
+  const handleTextReset = () => {
     setPanels(defaultPanels);
   };
 
@@ -160,9 +160,9 @@ export default function TranscriptionComparer() {
           <Button
             variant="link"
             className="text-sm text-slate-500 hover:text-amber-700 transition-colors p-0 h-auto"
-            onClick={handleClearAll}
+            onClick={handleTextReset}
           >
-            Clear
+            Reset
           </Button>
         </div>
         <div className="flex items-center gap-4">
