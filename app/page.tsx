@@ -1,27 +1,26 @@
-"use client";
+"use client"
 
-import { useState, useMemo } from "react";
-import {
-  Card,
-  CardHeader,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { computeDiffHtml, calculateWer, type WerMetrics } from "@/lib/diff";
-import { cn } from "@/lib/utils";
-import { Pencil, EyeOff, FileDiff } from "lucide-react";
-import Link from "next/link";
+import { useState, useMemo } from "react"
+import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card"
+import { Textarea } from "@/components/ui/textarea"
+import { Button } from "@/components/ui/button"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { computeDiffHtml, calculateWer, type WerMetrics } from "@/lib/diff"
+import { cn } from "@/lib/utils"
+import { Pencil, EyeOff, FileDiff } from "lucide-react"
+import Link from "next/link"
+import { Switch } from "@/components/ui/switch"
+import { Separator } from "@/components/ui/separator"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { useWordMap, type WordMap } from "@/hooks/use-word-map"
 
 interface PanelState {
-  id: number;
-  title: string;
-  text: string;
-  isVisible: boolean;
+  id: number
+  title: string
+  text: string
+  isVisible: boolean
 }
 
 export default function TranscriptionComparer() {
@@ -44,51 +43,63 @@ export default function TranscriptionComparer() {
       text: "A quick brown fox leaps over the lazy dog.",
       isVisible: true,
     },
-  ]);
-  const [diffMode, setDiffMode] = useState<"word" | "char">("word");
+  ])
+  const [diffMode, setDiffMode] = useState<"word" | "char">("word")
+  const [isNormalized, setIsNormalized] = useState(false)
+  const { wordMap } = useWordMap()
+
+  const applyWordMap = (text: string, map: WordMap) => {
+    if (Object.keys(map).length === 0) return text
+    // Create a regex to match whole words from the map keys
+    const regex = new RegExp(`\\b(${Object.keys(map).join("|")})\\b`, "gi")
+    return text.replace(regex, (matched) => map[matched.toLowerCase()] || matched)
+  }
+
+  const normalizeText = (text: string) => {
+    // First, apply the word map to the original text
+    const mappedText = applyWordMap(text, wordMap)
+    // Then, lowercase and remove punctuation
+    return mappedText
+      .toLowerCase()
+      .replace(/[^\w\s]|_/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+  }
 
   const handleSetGroundTruth = (newGtIndex: number) => {
-    if (newGtIndex === 0) return; // Already the ground truth
-    const newPanels = [...panels];
-    const newGtPanel = newPanels[newGtIndex];
-    const oldGtPanel = newPanels[0];
-    newPanels[0] = newGtPanel;
-    newPanels[newGtIndex] = oldGtPanel;
-    setPanels(newPanels);
-  };
+    if (newGtIndex === 0) return // Already the ground truth
+    const newPanels = [...panels]
+    const newGtPanel = newPanels[newGtIndex]
+    const oldGtPanel = newPanels[0]
+    newPanels[0] = newGtPanel
+    newPanels[newGtIndex] = oldGtPanel
+    setPanels(newPanels)
+  }
 
   const handleTextChange = (index: number, newText: string) => {
-    setPanels(
-      panels.map((p, i) => (i === index ? { ...p, text: newText } : p))
-    );
-  };
+    setPanels(panels.map((p, i) => (i === index ? { ...p, text: newText } : p)))
+  }
 
   const handleTitleChange = (index: number, newTitle: string) => {
-    setPanels(
-      panels.map((p, i) => (i === index ? { ...p, title: newTitle } : p))
-    );
-  };
+    setPanels(panels.map((p, i) => (i === index ? { ...p, title: newTitle } : p)))
+  }
 
   const handleVisibilityChange = (index: number) => {
-    setPanels(
-      panels.map((p, i) =>
-        i === index ? { ...p, isVisible: !p.isVisible } : p
-      )
-    );
-  };
+    setPanels(panels.map((p, i) => (i === index ? { ...p, isVisible: !p.isVisible } : p)))
+  }
 
-  const groundTruthText = panels[0].text;
-  const visiblePanels = panels.filter((p) => p.isVisible);
-  const hiddenPanel = panels.find((p) => !p.isVisible);
-  const hiddenPanelIndex = panels.findIndex((p) => !p.isVisible);
-  const canHidePanel = visiblePanels.length > 2;
+  const groundTruthText = panels[0].text
+  const visiblePanels = panels.filter((p) => p.isVisible)
+  const hiddenPanel = panels.find((p) => !p.isVisible)
+  const hiddenPanelIndex = panels.findIndex((p) => !p.isVisible)
+  const canHidePanel = visiblePanels.length > 2
 
   const gridColsClass =
     {
       1: "md:grid-cols-1",
       2: "md:grid-cols-2",
       3: "md:grid-cols-3",
-    }[visiblePanels.length] || "md:grid-cols-3";
+    }[visiblePanels.length] || "md:grid-cols-3"
 
   return (
     <div className="flex flex-col h-screen bg-slate-50 font-sans p-4 gap-4">
@@ -96,22 +107,35 @@ export default function TranscriptionComparer() {
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-amber-700">RabuSore Diff</h1>
           <span className="text-slate-300">|</span>
-          <Link
-            href="/about"
-            className="text-sm text-slate-500 hover:text-amber-700 transition-colors"
-          >
+          <Link href="/about" className="text-sm text-slate-500 hover:text-amber-700 transition-colors">
             About
+          </Link>
+          <Link href="/wordmap" className="text-sm text-slate-500 hover:text-amber-700 transition-colors">
+            Word Map
           </Link>
         </div>
         <div className="flex items-center gap-4">
           {hiddenPanel && (
-            <Button
-              variant="outline"
-              onClick={() => handleVisibilityChange(hiddenPanelIndex)}
-            >
+            <Button variant="outline" onClick={() => handleVisibilityChange(hiddenPanelIndex)}>
               Show "{hiddenPanel.title}"
             </Button>
           )}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="normalized-mode" className="font-normal cursor-pointer">
+                    Normalized
+                  </Label>
+                  <Switch id="normalized-mode" checked={isNormalized} onCheckedChange={setIsNormalized} />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Ignore case, punctuation, and apply word map.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <Separator orientation="vertical" className="h-6" />
           <Label>Diff Mode:</Label>
           <RadioGroup
             defaultValue="word"
@@ -129,9 +153,7 @@ export default function TranscriptionComparer() {
           </RadioGroup>
         </div>
       </header>
-      <main
-        className={`flex-1 grid grid-cols-1 ${gridColsClass} gap-4 min-h-0`}
-      >
+      <main className={`flex-1 grid grid-cols-1 ${gridColsClass} gap-4 min-h-0`}>
         {panels.map(
           (panel, index) =>
             panel.isVisible && (
@@ -147,25 +169,29 @@ export default function TranscriptionComparer() {
                 groundTruthText={groundTruthText}
                 diffMode={diffMode}
                 canHide={canHidePanel}
+                isNormalized={isNormalized}
+                normalizeFn={normalizeText}
               />
-            )
+            ),
         )}
       </main>
     </div>
-  );
+  )
 }
 
 interface TextPanelProps {
-  index: number;
-  panel: PanelState;
-  isGroundTruth: boolean;
-  onTextChange: (newText: string) => void;
-  onTitleChange: (newTitle: string) => void;
-  onVisibilityChange: () => void;
-  onSetAsGroundTruth: () => void;
-  groundTruthText: string;
-  diffMode: "word" | "char";
-  canHide: boolean;
+  index: number
+  panel: PanelState
+  isGroundTruth: boolean
+  onTextChange: (newText: string) => void
+  onTitleChange: (newTitle: string) => void
+  onVisibilityChange: () => void
+  onSetAsGroundTruth: () => void
+  groundTruthText: string
+  diffMode: "word" | "char"
+  canHide: boolean
+  isNormalized: boolean
+  normalizeFn: (text: string) => string
 }
 
 function TextPanel({
@@ -178,20 +204,32 @@ function TextPanel({
   groundTruthText,
   diffMode,
   canHide,
+  isNormalized,
+  normalizeFn,
 }: TextPanelProps) {
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false)
+
+  const groundTruthForDisplay = useMemo(
+    () => (isNormalized ? normalizeFn(groundTruthText) : groundTruthText),
+    [isNormalized, normalizeFn, groundTruthText],
+  )
+
+  const panelTextForDisplay = useMemo(
+    () => (isNormalized ? normalizeFn(panel.text) : panel.text),
+    [isNormalized, normalizeFn, panel.text],
+  )
 
   const diffHtml = useMemo(() => {
-    if (isGroundTruth) return null;
-    return computeDiffHtml(groundTruthText, panel.text, diffMode);
-  }, [panel.text, groundTruthText, diffMode, isGroundTruth]);
+    if (isGroundTruth) return null
+    return computeDiffHtml(groundTruthForDisplay, panelTextForDisplay, diffMode)
+  }, [panelTextForDisplay, groundTruthForDisplay, diffMode, isGroundTruth])
 
   const metrics: WerMetrics | null = useMemo(() => {
-    if (isGroundTruth) return null;
-    return calculateWer(groundTruthText, panel.text);
-  }, [panel.text, groundTruthText, isGroundTruth]);
+    if (isGroundTruth) return null
+    return calculateWer(groundTruthForDisplay, panelTextForDisplay)
+  }, [panelTextForDisplay, groundTruthForDisplay, isGroundTruth])
 
-  const isEditing = isGroundTruth || isEditMode;
+  const isEditing = !isNormalized && (isGroundTruth || isEditMode)
 
   return (
     <Card className="flex flex-col h-full w-full transition-all bg-white shadow-sm">
@@ -202,40 +240,25 @@ function TextPanel({
             onChange={(e) => onTitleChange(e.target.value)}
             className={cn(
               "text-lg font-bold border-none focus-visible:ring-1 focus-visible:ring-ring p-1 h-auto bg-transparent",
-              isGroundTruth && "text-emerald-700"
+              isGroundTruth && "text-emerald-700",
             )}
           />
           <div className="flex items-center gap-1">
             {!isGroundTruth && (
               <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={onSetAsGroundTruth}
-                >
+                <Button size="sm" variant="outline" onClick={onSetAsGroundTruth}>
                   Set as GT
                 </Button>
                 <Button
                   size="icon"
                   variant={isEditMode ? "secondary" : "ghost"}
                   onClick={() => setIsEditMode(!isEditMode)}
-                  title={
-                    isEditMode ? "Switch to Diff View" : "Switch to Edit Mode"
-                  }
+                  title={isEditMode ? "Switch to Diff View" : "Switch to Edit Mode"}
+                  disabled={isNormalized}
                 >
-                  {isEditMode ? (
-                    <FileDiff className="h-4 w-4" />
-                  ) : (
-                    <Pencil className="h-4 w-4" />
-                  )}
+                  {isEditMode ? <FileDiff className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
                 </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={onVisibilityChange}
-                  disabled={!canHide}
-                  title="Hide Panel"
-                >
+                <Button size="icon" variant="ghost" onClick={onVisibilityChange} disabled={!canHide} title="Hide Panel">
                   <EyeOff className="h-4 w-4" />
                 </Button>
               </>
@@ -255,8 +278,9 @@ function TextPanel({
           <div
             className="w-full h-full flex-1 overflow-y-auto p-2 border rounded-md bg-slate-50 text-sm whitespace-pre-wrap"
             dangerouslySetInnerHTML={{
-              __html:
-                diffHtml || '<span class="text-gray-400">No difference.</span>',
+              __html: isGroundTruth
+                ? panelTextForDisplay
+                : diffHtml || '<span class="text-gray-400">No difference.</span>',
             }}
           />
         )}
@@ -267,33 +291,23 @@ function TextPanel({
             <p className="font-semibold">Metrics vs. Ground Truth:</p>
             <div className="flex justify-between items-center text-xs mt-1">
               <span>
-                WER:{" "}
-                <span className="font-bold">
-                  {(metrics.wer * 100).toFixed(2)}%
-                </span>
+                WER: <span className="font-bold">{(metrics.wer * 100).toFixed(2)}%</span>
               </span>
               <span>
-                Substitutions:{" "}
-                <span className="font-bold text-orange-500">
-                  {metrics.subs}
-                </span>
+                Substitutions: <span className="font-bold text-orange-500">{metrics.subs}</span>
               </span>
               <span>
-                Insertions:{" "}
-                <span className="font-bold text-blue-500">{metrics.ins}</span>
+                Insertions: <span className="font-bold text-blue-500">{metrics.ins}</span>
               </span>
               <span>
-                Deletions:{" "}
-                <span className="font-bold text-red-500">{metrics.dels}</span>
+                Deletions: <span className="font-bold text-red-500">{metrics.dels}</span>
               </span>
             </div>
           </div>
         ) : (
-          <div className="text-sm text-gray-400">
-            This is the Ground Truth text.
-          </div>
+          <div className="text-sm text-gray-400">This is the Ground Truth text.</div>
         )}
       </CardFooter>
     </Card>
-  );
+  )
 }
