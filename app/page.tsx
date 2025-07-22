@@ -70,13 +70,14 @@ export default function TranscriptionComparer() {
   const { panels, setPanels } = usePanelState();
   const [debouncedPanels, setDebouncedPanels] = useState(panels);
   const [diffMode, setDiffMode] = useState<"word" | "char">("word");
-  const [isEvalMode, setIsEvalMode] = useState(false);
+  const [isNormalized, setIsNormalized] = useState(false);
   const { wordMap, applyWordMap } = useWordMap();
   const { setAllSuggestions } = useSuggestedMaps();
 
   const [savedGroundTruthText, setSavedGroundTruthText] = useState(
     panels[0].text
   );
+  const [editStates, setEditStates] = useState<{ [key: number]: boolean }>({});
 
   const groundTruthText = panels[0].text;
   const visiblePanels = panels.filter((p) => p.isVisible);
@@ -87,6 +88,7 @@ export default function TranscriptionComparer() {
   const handleTextReset = () => {
     setPanels(defaultPanels);
     setSavedGroundTruthText(defaultPanels[0].text);
+    setEditStates({});
   };
 
   useEffect(() => {
@@ -168,6 +170,10 @@ export default function TranscriptionComparer() {
     setSavedGroundTruthText(newText);
   };
 
+  const handleToggleEdit = (panelId: number) => {
+    setEditStates((prev) => ({ ...prev, [panelId]: !prev[panelId] }));
+  };
+
   return (
     <div className="flex flex-col h-screen bg-slate-50 font-sans p-4 gap-4">
       <header className="flex-shrink-0 bg-white border rounded-lg p-4 flex items-center justify-between">
@@ -208,15 +214,15 @@ export default function TranscriptionComparer() {
               <TooltipTrigger asChild>
                 <div className="flex items-center space-x-2">
                   <Label
-                    htmlFor="eval-mode"
+                    htmlFor="normalized-mode"
                     className="font-normal cursor-pointer"
                   >
-                    Eval
+                    Normalized
                   </Label>
                   <Switch
-                    id="eval-mode"
-                    checked={isEvalMode}
-                    onCheckedChange={setIsEvalMode}
+                    id="normalized-mode"
+                    checked={isNormalized}
+                    onCheckedChange={setIsNormalized}
                   />
                 </div>
               </TooltipTrigger>
@@ -261,10 +267,13 @@ export default function TranscriptionComparer() {
                 groundTruthText={savedGroundTruthText}
                 diffMode={diffMode}
                 canHide={canHidePanel}
-                isEvalMode={isEvalMode}
+                isNormalized={isNormalized}
                 normalizeFn={(text: string) =>
                   normalizeText(text, applyWordMap, wordMap)
                 }
+                isEditing={!!editStates[panel.id]}
+                onToggleEdit={() => handleToggleEdit(panel.id)}
+                isGTEditing={!!editStates[panels[0].id]}
               />
             )
         )}
@@ -284,8 +293,11 @@ interface TextPanelProps {
   groundTruthText: string;
   diffMode: "word" | "char";
   canHide: boolean;
-  isEvalMode: boolean;
+  isNormalized: boolean;
   normalizeFn: (text: string) => string;
+  isEditing: boolean;
+  onToggleEdit: () => void;
+  isGTEditing: boolean;
 }
 
 function TextPanel({
@@ -299,18 +311,19 @@ function TextPanel({
   groundTruthText,
   diffMode,
   canHide,
-  isEvalMode,
+  isNormalized,
   normalizeFn,
+  isEditing,
+  onToggleEdit,
+  isGTEditing,
 }: TextPanelProps) {
-  const [isEditMode, setIsEditMode] = useState(false);
-
   const textForDisplay = useMemo(
-    () => (isEvalMode ? normalizeFn(panel.text) : panel.text),
-    [isEvalMode, normalizeFn, panel.text]
+    () => (isNormalized ? normalizeFn(panel.text) : panel.text),
+    [isNormalized, normalizeFn, panel.text]
   );
   const groundTruthForDisplay = useMemo(
-    () => (isEvalMode ? normalizeFn(groundTruthText) : groundTruthText),
-    [isEvalMode, normalizeFn, groundTruthText]
+    () => (isNormalized ? normalizeFn(groundTruthText) : groundTruthText),
+    [isNormalized, normalizeFn, groundTruthText]
   );
 
   const diffHtml = useMemo(() => {
@@ -321,27 +334,27 @@ function TextPanel({
     return computeDiffHtml(groundTruthForDisplay, textForDisplay, diffMode);
   }, [isGroundTruth, groundTruthForDisplay, textForDisplay, diffMode]);
 
+  const showMetrics = !isGroundTruth && !isEditing && !isGTEditing;
+
   const werMetrics: WerMetrics | null = useMemo(() => {
-    if (isGroundTruth || !isEvalMode) return null;
+    if (!showMetrics) return null;
 
     // Always calculate WER on content only
     const refContent = stripSpeakerTags(groundTruthText);
     const hypContent = stripSpeakerTags(panel.text);
 
     // Apply normalization if the mode is on
-    const finalRef = isEvalMode ? normalizeFn(refContent) : refContent;
-    const finalHyp = isEvalMode ? normalizeFn(hypContent) : hypContent;
+    const finalRef = isNormalized ? normalizeFn(refContent) : refContent;
+    const finalHyp = isNormalized ? normalizeFn(hypContent) : hypContent;
 
     return calculateWer(finalRef, finalHyp);
-  }, [isGroundTruth, isEvalMode, groundTruthText, panel.text, normalizeFn]);
+  }, [showMetrics, isNormalized, groundTruthText, panel.text, normalizeFn]);
 
   const derMetrics: DerMetrics | null = useMemo(() => {
-    if (isGroundTruth || !isEvalMode) return null;
+    if (!showMetrics) return null;
     // DER is always calculated on the original, non-normalized text.
     return calculateDer(groundTruthText, panel.text);
-  }, [groundTruthText, panel.text, isGroundTruth, isEvalMode]);
-
-  const isEditing = !isEvalMode && isEditMode;
+  }, [groundTruthText, panel.text, showMetrics]);
 
   return (
     <Card className="flex flex-col h-full w-full transition-all bg-white shadow-sm">
@@ -359,17 +372,16 @@ function TextPanel({
             {isGroundTruth && (
               <Button
                 size="icon"
-                variant={isEditMode ? "secondary" : "ghost"}
+                variant={isEditing ? "secondary" : "ghost"}
                 onClick={() => {
-                  if (isEditMode) {
+                  if (isEditing) {
                     onSaveGroundTruth(panel.text);
                   }
-                  setIsEditMode(!isEditMode);
+                  onToggleEdit();
                 }}
-                title={isEditMode ? "Save" : "Edit"}
-                disabled={isEvalMode}
+                title={isEditing ? "Save" : "Edit"}
               >
-                {isEditMode ? (
+                {isEditing ? (
                   <Save className="h-4 w-4" />
                 ) : (
                   <Pencil className="h-4 w-4" />
@@ -387,14 +399,13 @@ function TextPanel({
                 </Button>
                 <Button
                   size="icon"
-                  variant={isEditMode ? "secondary" : "ghost"}
-                  onClick={() => setIsEditMode(!isEditMode)}
+                  variant={isEditing ? "secondary" : "ghost"}
+                  onClick={onToggleEdit}
                   title={
-                    isEditMode ? "Switch to Diff View" : "Switch to Edit Mode"
+                    isEditing ? "Switch to Diff View" : "Switch to Edit Mode"
                   }
-                  disabled={isEvalMode}
                 >
-                  {isEditMode ? (
+                  {isEditing ? (
                     <Save className="h-4 w-4" />
                   ) : (
                     <Pencil className="h-4 w-4" />
