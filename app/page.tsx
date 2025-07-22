@@ -23,7 +23,7 @@ import {
   stripSpeakerTags,
 } from "@/lib/diff";
 import { cn } from "@/lib/utils";
-import { Pencil, EyeOff, FileDiff } from "lucide-react";
+import { Pencil, EyeOff, Save } from "lucide-react";
 import Link from "next/link";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
@@ -70,9 +70,13 @@ export default function TranscriptionComparer() {
   const { panels, setPanels } = usePanelState();
   const [debouncedPanels, setDebouncedPanels] = useState(panels);
   const [diffMode, setDiffMode] = useState<"word" | "char">("word");
-  const [isNormalized, setIsNormalized] = useState(false);
+  const [isEvalMode, setIsEvalMode] = useState(false);
   const { wordMap, applyWordMap } = useWordMap();
   const { setAllSuggestions } = useSuggestedMaps();
+
+  const [savedGroundTruthText, setSavedGroundTruthText] = useState(
+    panels[0].text
+  );
 
   const groundTruthText = panels[0].text;
   const visiblePanels = panels.filter((p) => p.isVisible);
@@ -82,6 +86,7 @@ export default function TranscriptionComparer() {
 
   const handleTextReset = () => {
     setPanels(defaultPanels);
+    setSavedGroundTruthText(defaultPanels[0].text);
   };
 
   useEffect(() => {
@@ -159,6 +164,10 @@ export default function TranscriptionComparer() {
     });
   };
 
+  const handleSaveGroundTruth = (newText: string) => {
+    setSavedGroundTruthText(newText);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-slate-50 font-sans p-4 gap-4">
       <header className="flex-shrink-0 bg-white border rounded-lg p-4 flex items-center justify-between">
@@ -199,15 +208,15 @@ export default function TranscriptionComparer() {
               <TooltipTrigger asChild>
                 <div className="flex items-center space-x-2">
                   <Label
-                    htmlFor="normalized-mode"
+                    htmlFor="eval-mode"
                     className="font-normal cursor-pointer"
                   >
-                    Normalized
+                    Eval
                   </Label>
                   <Switch
-                    id="normalized-mode"
-                    checked={isNormalized}
-                    onCheckedChange={setIsNormalized}
+                    id="eval-mode"
+                    checked={isEvalMode}
+                    onCheckedChange={setIsEvalMode}
                   />
                 </div>
               </TooltipTrigger>
@@ -248,10 +257,11 @@ export default function TranscriptionComparer() {
                 onTitleChange={(newTitle) => handleTitleChange(index, newTitle)}
                 onVisibilityChange={() => handleVisibilityChange(index)}
                 onSetAsGroundTruth={() => handleSetGroundTruth(panel.id)}
-                groundTruthText={groundTruthText}
+                onSaveGroundTruth={handleSaveGroundTruth}
+                groundTruthText={savedGroundTruthText}
                 diffMode={diffMode}
                 canHide={canHidePanel}
-                isNormalized={isNormalized}
+                isEvalMode={isEvalMode}
                 normalizeFn={(text: string) =>
                   normalizeText(text, applyWordMap, wordMap)
                 }
@@ -270,10 +280,11 @@ interface TextPanelProps {
   onTitleChange: (newTitle: string) => void;
   onVisibilityChange: () => void;
   onSetAsGroundTruth: () => void;
+  onSaveGroundTruth: (newText: string) => void;
   groundTruthText: string;
   diffMode: "word" | "char";
   canHide: boolean;
-  isNormalized: boolean;
+  isEvalMode: boolean;
   normalizeFn: (text: string) => string;
 }
 
@@ -284,21 +295,22 @@ function TextPanel({
   onTitleChange,
   onVisibilityChange,
   onSetAsGroundTruth,
+  onSaveGroundTruth,
   groundTruthText,
   diffMode,
   canHide,
-  isNormalized,
+  isEvalMode,
   normalizeFn,
 }: TextPanelProps) {
   const [isEditMode, setIsEditMode] = useState(false);
 
   const textForDisplay = useMemo(
-    () => (isNormalized ? normalizeFn(panel.text) : panel.text),
-    [isNormalized, normalizeFn, panel.text]
+    () => (isEvalMode ? normalizeFn(panel.text) : panel.text),
+    [isEvalMode, normalizeFn, panel.text]
   );
   const groundTruthForDisplay = useMemo(
-    () => (isNormalized ? normalizeFn(groundTruthText) : groundTruthText),
-    [isNormalized, normalizeFn, groundTruthText]
+    () => (isEvalMode ? normalizeFn(groundTruthText) : groundTruthText),
+    [isEvalMode, normalizeFn, groundTruthText]
   );
 
   const diffHtml = useMemo(() => {
@@ -310,26 +322,26 @@ function TextPanel({
   }, [isGroundTruth, groundTruthForDisplay, textForDisplay, diffMode]);
 
   const werMetrics: WerMetrics | null = useMemo(() => {
-    if (isGroundTruth) return null;
+    if (isGroundTruth || !isEvalMode) return null;
 
     // Always calculate WER on content only
     const refContent = stripSpeakerTags(groundTruthText);
     const hypContent = stripSpeakerTags(panel.text);
 
     // Apply normalization if the mode is on
-    const finalRef = isNormalized ? normalizeFn(refContent) : refContent;
-    const finalHyp = isNormalized ? normalizeFn(hypContent) : hypContent;
+    const finalRef = isEvalMode ? normalizeFn(refContent) : refContent;
+    const finalHyp = isEvalMode ? normalizeFn(hypContent) : hypContent;
 
     return calculateWer(finalRef, finalHyp);
-  }, [isGroundTruth, isNormalized, groundTruthText, panel.text, normalizeFn]);
+  }, [isGroundTruth, isEvalMode, groundTruthText, panel.text, normalizeFn]);
 
   const derMetrics: DerMetrics | null = useMemo(() => {
-    if (isGroundTruth) return null;
+    if (isGroundTruth || !isEvalMode) return null;
     // DER is always calculated on the original, non-normalized text.
     return calculateDer(groundTruthText, panel.text);
-  }, [groundTruthText, panel.text, isGroundTruth]);
+  }, [groundTruthText, panel.text, isGroundTruth, isEvalMode]);
 
-  const isEditing = !isNormalized && (isGroundTruth || isEditMode);
+  const isEditing = !isEvalMode && isEditMode;
 
   return (
     <Card className="flex flex-col h-full w-full transition-all bg-white shadow-sm">
@@ -344,6 +356,26 @@ function TextPanel({
             )}
           />
           <div className="flex items-center gap-1">
+            {isGroundTruth && (
+              <Button
+                size="icon"
+                variant={isEditMode ? "secondary" : "ghost"}
+                onClick={() => {
+                  if (isEditMode) {
+                    onSaveGroundTruth(panel.text);
+                  }
+                  setIsEditMode(!isEditMode);
+                }}
+                title={isEditMode ? "Save" : "Edit"}
+                disabled={isEvalMode}
+              >
+                {isEditMode ? (
+                  <Save className="h-4 w-4" />
+                ) : (
+                  <Pencil className="h-4 w-4" />
+                )}
+              </Button>
+            )}
             {!isGroundTruth && (
               <>
                 <Button
@@ -360,10 +392,10 @@ function TextPanel({
                   title={
                     isEditMode ? "Switch to Diff View" : "Switch to Edit Mode"
                   }
-                  disabled={isNormalized}
+                  disabled={isEvalMode}
                 >
                   {isEditMode ? (
-                    <FileDiff className="h-4 w-4" />
+                    <Save className="h-4 w-4" />
                   ) : (
                     <Pencil className="h-4 w-4" />
                   )}
@@ -403,71 +435,75 @@ function TextPanel({
         )}
       </CardContent>
       <CardFooter className="flex-shrink-0 flex flex-col items-start gap-4 pt-4 border-t">
-        {!isGroundTruth && werMetrics ? (
-          <div className="text-sm text-gray-700 w-full">
-            <p className="font-semibold">Word Error Rate (WER):</p>
-            <div className="grid grid-cols-4 gap-4 text-xs mt-1">
-              <span>
-                WER:{" "}
-                <span className="font-bold">
-                  {(werMetrics.wer * 100).toFixed(2)}%
-                </span>
-              </span>
-              <span>
-                Substitutions:{" "}
-                <span className="font-bold text-orange-500">
-                  {werMetrics.subs}
-                </span>
-              </span>
-              <span>
-                Insertions:{" "}
-                <span className="font-bold text-blue-500">
-                  {werMetrics.ins}
-                </span>
-              </span>
-              <span>
-                Deletions:{" "}
-                <span className="font-bold text-red-500">
-                  {werMetrics.dels}
-                </span>
-              </span>
-            </div>
-          </div>
-        ) : (
+        {isGroundTruth ? (
           <div className="text-sm text-gray-400">
             This is the Ground Truth text.
           </div>
-        )}
-        {!isGroundTruth && derMetrics && (
-          <div className="text-sm text-gray-700 w-full">
-            <p className="font-semibold">Diarization Error Rate (DER):</p>
-            <div className="grid grid-cols-4 gap-4 text-xs mt-1">
-              <span>
-                DER:{" "}
-                <span className="font-bold">
-                  {(derMetrics.der * 100).toFixed(2)}%
-                </span>
-              </span>
-              <span>
-                Speaker Error:{" "}
-                <span className="font-bold text-purple-500">
-                  {derMetrics.speakerError}
-                </span>
-              </span>
-              <span>
-                False Alarm:{" "}
-                <span className="font-bold text-blue-500">
-                  {derMetrics.falseAlarm}
-                </span>
-              </span>
-              <span>
-                Missed Speech:{" "}
-                <span className="font-bold text-red-500">
-                  {derMetrics.missedSpeech}
-                </span>
-              </span>
-            </div>
-          </div>
+        ) : (
+          <>
+            {werMetrics && (
+              <div className="text-sm text-gray-700 w-full">
+                <p className="font-semibold">Word Error Rate (WER):</p>
+                <div className="grid grid-cols-4 gap-4 text-xs mt-1">
+                  <span>
+                    WER:{" "}
+                    <span className="font-bold">
+                      {(werMetrics.wer * 100).toFixed(2)}%
+                    </span>
+                  </span>
+                  <span>
+                    Substitutions:{" "}
+                    <span className="font-bold text-orange-500">
+                      {werMetrics.subs}
+                    </span>
+                  </span>
+                  <span>
+                    Insertions:{" "}
+                    <span className="font-bold text-blue-500">
+                      {werMetrics.ins}
+                    </span>
+                  </span>
+                  <span>
+                    Deletions:{" "}
+                    <span className="font-bold text-red-500">
+                      {werMetrics.dels}
+                    </span>
+                  </span>
+                </div>
+              </div>
+            )}
+            {derMetrics && (
+              <div className="text-sm text-gray-700 w-full">
+                <p className="font-semibold">Diarization Error Rate (DER):</p>
+                <div className="grid grid-cols-4 gap-4 text-xs mt-1">
+                  <span>
+                    DER:{" "}
+                    <span className="font-bold">
+                      {(derMetrics.der * 100).toFixed(2)}%
+                    </span>
+                  </span>
+                  <span>
+                    Speaker Error:{" "}
+                    <span className="font-bold text-purple-500">
+                      {derMetrics.speakerError}
+                    </span>
+                  </span>
+                  <span>
+                    False Alarm:{" "}
+                    <span className="font-bold text-blue-500">
+                      {derMetrics.falseAlarm}
+                    </span>
+                  </span>
+                  <span>
+                    Missed Speech:{" "}
+                    <span className="font-bold text-red-500">
+                      {derMetrics.missedSpeech}
+                    </span>
+                  </span>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </CardFooter>
     </Card>
