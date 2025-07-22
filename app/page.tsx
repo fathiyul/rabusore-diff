@@ -317,6 +317,14 @@ function TextPanel({
   onToggleEdit,
   isGTEditing,
 }: TextPanelProps) {
+  const [editedText, setEditedText] = useState(panel.text);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setEditedText(panel.text);
+    }
+  }, [isEditing, panel.text]);
+
   const textForDisplay = useMemo(
     () => (isNormalized ? normalizeFn(panel.text) : panel.text),
     [isNormalized, normalizeFn, panel.text]
@@ -375,7 +383,7 @@ function TextPanel({
                 variant={isEditing ? "secondary" : "ghost"}
                 onClick={() => {
                   if (isEditing) {
-                    onSaveGroundTruth(panel.text);
+                    onSaveGroundTruth(editedText);
                   }
                   onToggleEdit();
                 }}
@@ -400,7 +408,12 @@ function TextPanel({
                 <Button
                   size="icon"
                   variant={isEditing ? "secondary" : "ghost"}
-                  onClick={onToggleEdit}
+                  onClick={() => {
+                    if (isEditing) {
+                      onTextChange(editedText);
+                    }
+                    onToggleEdit();
+                  }}
                   title={
                     isEditing ? "Switch to Diff View" : "Switch to Edit Mode"
                   }
@@ -428,8 +441,8 @@ function TextPanel({
       <CardContent className="flex-1 flex flex-col min-h-0">
         {isEditing ? (
           <Textarea
-            value={panel.text}
-            onChange={(e) => onTextChange(e.target.value)}
+            value={editedText}
+            onChange={(e) => setEditedText(e.target.value)}
             className="w-full flex-1 resize-none text-base"
             spellCheck={false}
           />
