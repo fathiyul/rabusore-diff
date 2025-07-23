@@ -42,8 +42,8 @@ const normalizeText = (text: string, applyWordMap: any, wordMap: WordMap) => {
   return mappedText
     .split("\n")
     .map((line) => {
-      const colonIndex = line.indexOf(":");
-      if (colonIndex === -1) {
+      const match = line.match(/^(\[[^\]]+\]\s*)?([^:]+:\s*)(.*)$/);
+      if (!match) {
         // No speaker tag, normalize whole line
         return line
           .toLowerCase()
@@ -52,8 +52,10 @@ const normalizeText = (text: string, applyWordMap: any, wordMap: WordMap) => {
           .trim();
       }
 
-      const speaker = line.substring(0, colonIndex + 1);
-      const utterance = line.substring(colonIndex + 1);
+      const timestampAndSpeaker = match[1]
+        ? `${match[1]}${match[2]}`
+        : match[2];
+      const utterance = match[3];
 
       const normalizedUtterance = utterance
         .toLowerCase()
@@ -61,7 +63,7 @@ const normalizeText = (text: string, applyWordMap: any, wordMap: WordMap) => {
         .replace(/\s+/g, " ")
         .trim();
 
-      return `${speaker} ${normalizedUtterance}`;
+      return `${timestampAndSpeaker}${normalizedUtterance}`;
     })
     .join("\n");
 };
@@ -74,9 +76,6 @@ export default function TranscriptionComparer() {
   const { wordMap, applyWordMap } = useWordMap();
   const { setAllSuggestions } = useSuggestedMaps();
 
-  const [savedGroundTruthText, setSavedGroundTruthText] = useState(
-    panels[0].text
-  );
   const [editStates, setEditStates] = useState<{ [key: number]: boolean }>({});
 
   const groundTruthText = panels[0].text;
@@ -87,7 +86,6 @@ export default function TranscriptionComparer() {
 
   const handleTextReset = () => {
     setPanels(defaultPanels);
-    setSavedGroundTruthText(defaultPanels[0].text);
     setEditStates({});
   };
 
@@ -167,7 +165,11 @@ export default function TranscriptionComparer() {
   };
 
   const handleSaveGroundTruth = (newText: string) => {
-    setSavedGroundTruthText(newText);
+    setPanels((currentPanels) => {
+      const newPanels = [...currentPanels];
+      newPanels[0] = { ...newPanels[0], text: newText };
+      return newPanels;
+    });
   };
 
   const handleToggleEdit = (panelId: number) => {
@@ -264,7 +266,7 @@ export default function TranscriptionComparer() {
                 onVisibilityChange={() => handleVisibilityChange(index)}
                 onSetAsGroundTruth={() => handleSetGroundTruth(panel.id)}
                 onSaveGroundTruth={handleSaveGroundTruth}
-                groundTruthText={savedGroundTruthText}
+                groundTruthText={groundTruthText}
                 diffMode={diffMode}
                 canHide={canHidePanel}
                 isNormalized={isNormalized}
@@ -504,24 +506,6 @@ function TextPanel({
                     DER:{" "}
                     <span className="font-bold">
                       {(derMetrics.der * 100).toFixed(2)}%
-                    </span>
-                  </span>
-                  <span>
-                    Speaker Error:{" "}
-                    <span className="font-bold text-purple-500">
-                      {derMetrics.speakerError}
-                    </span>
-                  </span>
-                  <span>
-                    False Alarm:{" "}
-                    <span className="font-bold text-blue-500">
-                      {derMetrics.falseAlarm}
-                    </span>
-                  </span>
-                  <span>
-                    Missed Speech:{" "}
-                    <span className="font-bold text-red-500">
-                      {derMetrics.missedSpeech}
                     </span>
                   </span>
                 </div>

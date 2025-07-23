@@ -235,130 +235,163 @@ export const calculateWer = (ref: string, hyp: string): WerMetrics => {
   return { wer: isFinite(wer) ? wer : 0, subs, ins, dels };
 };
 
-// New helper function to extract speaker sequence
-const extractSpeakerSequence = (text: string): string[] => {
-  const lines = text.split("\n");
-  const speakers: string[] = [];
-  let lastSpeaker: string | null = null;
-
-  for (const line of lines) {
-    // Check for a colon to identify a speaker tag
-    const colonIndex = line.indexOf(":");
-    if (colonIndex > 0) {
-      const speaker = line.substring(0, colonIndex).trim();
-      // Add speaker to the sequence if it's a new speaker
-      if (speaker !== lastSpeaker) {
-        speakers.push(speaker);
-        lastSpeaker = speaker;
-      }
-    }
-  }
-  return speakers;
+const formatTime = (seconds: number): string => {
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = (seconds % 60).toFixed(3);
+  return `[${hrs.toString().padStart(2, "0")}:${mins
+    .toString()
+    .padStart(2, "0")}:${secs.padStart(6, "0")}]`;
 };
+
+const logSegments = (label: string, segments: DiarizationSegment[]) => {
+  console.log(`\n--- ${label} ---`);
+  for (const seg of segments) {
+    console.log(
+      `${formatTime(seg.start)} - ${formatTime(seg.end)}  ${seg.speaker}`
+    );
+  }
+};
+
+// --- DER Calculation ---
 
 export interface DerMetrics {
   der: number;
-  speakerError: number; // Substitutions
-  falseAlarm: number; // Insertions
-  missedSpeech: number; // Deletions
 }
 
-// New calculateDer function based on speaker sequence comparison
+interface DiarizationSegment {
+  start: number;
+  end: number;
+  speaker: string;
+}
+
+// Helper to convert time string [HH:MM:SS.ms] or [HH:MM:SS] to seconds
+const timeToSeconds = (timeStr: string): number => {
+  const parts = timeStr.replace(/[\[\]]/g, "").split(":");
+  if (parts.length === 3) {
+    return (
+      parseInt(parts[0], 10) * 3600 +
+      parseInt(parts[1], 10) * 60 +
+      parseFloat(parts[2])
+    );
+  }
+  return 0;
+};
+
+// Parse diarization text into segment objects with start, end, and speaker
+const parseDiarization = (
+  text: string,
+  totalDuration?: number
+): DiarizationSegment[] => {
+  const lines = text.split("\n").filter((line) => line.trim() !== "");
+  const segments: { start: number; speaker: string }[] = [];
+
+  for (const line of lines) {
+    const match = line.match(/^(\[[^\]]+\])\s*([^:]+):/);
+    if (match) {
+      const timeStr = match[1];
+      const speaker = match[2].trim();
+      const start = timeToSeconds(timeStr);
+      segments.push({ start, speaker });
+    }
+  }
+
+  if (segments.length === 0) return [];
+
+  const diarizationSegments: DiarizationSegment[] = [];
+  for (let i = 0; i < segments.length; i++) {
+    const start = segments[i].start;
+    let end: number;
+    if (i + 1 < segments.length) {
+      end = segments[i + 1].start;
+    } else {
+      // This is the last segment
+      if (totalDuration && start < totalDuration) {
+        end = totalDuration;
+      } else {
+        // Fallback if no total duration or if last segment starts after total duration
+        end = start + 5; // Default duration for last segment
+      }
+    }
+    diarizationSegments.push({
+      start,
+      end,
+      speaker: segments[i].speaker,
+    });
+  }
+
+  return diarizationSegments;
+};
+
+// Main DER calculation function
 export const calculateDer = (ref: string, hyp: string): DerMetrics => {
-  const refSpeakers = extractSpeakerSequence(ref);
-  const hypSpeakers = extractSpeakerSequence(hyp);
+  const refSegments = parseDiarization(ref);
 
-  const n = refSpeakers.length;
-  const m = hypSpeakers.length;
+  const refTotalDuration = refSegments.reduce(
+    (sum, seg) => sum + (seg.end - seg.start),
+    0
+  );
 
-  if (n === 0) {
+  if (refTotalDuration === 0) {
+    const hypSegsForCheck = parseDiarization(hyp);
+    const hasHypSpeech = hypSegsForCheck.reduce(
+      (sum, seg) => sum + (seg.end - seg.start),
+      0
+    );
     return {
-      der: m > 0 ? Number.POSITIVE_INFINITY : 0,
-      speakerError: 0,
-      falseAlarm: m,
-      missedSpeech: 0,
+      der: hasHypSpeech > 0 ? 1 : 0,
     };
   }
 
-  const dp: number[][] = Array(n + 1)
-    .fill(null)
-    .map(() => Array(m + 1).fill(0));
-  const ops: string[][] = Array(n + 1)
-    .fill(null)
-    .map(() => Array(m + 1).fill(""));
+  const audioDuration =
+    refSegments.length > 0 ? Math.max(...refSegments.map((s) => s.end)) : 0;
+  const hypSegments = parseDiarization(hyp, audioDuration);
 
-  for (let i = 0; i <= n; i++) {
-    dp[i][0] = i;
-    ops[i][0] = "D";
-  }
-  for (let j = 0; j <= m; j++) {
-    dp[0][j] = j;
-    ops[0][j] = "I";
-  }
-  ops[0][0] = "";
+  let totalOverlapDuration = 0;
+  let correctSpeakerOverlapDuration = 0;
 
-  for (let i = 1; i <= n; i++) {
-    for (let j = 1; j <= m; j++) {
-      const cost = refSpeakers[i - 1] === hypSpeakers[j - 1] ? 0 : 1;
-      const delCost = dp[i - 1][j] + 1;
-      const insCost = dp[i][j - 1] + 1;
-      const subCost = dp[i - 1][j - 1] + cost;
+  for (const refSeg of refSegments) {
+    for (const hypSeg of hypSegments) {
+      const overlapStart = Math.max(refSeg.start, hypSeg.start);
+      const overlapEnd = Math.min(refSeg.end, hypSeg.end);
+      const overlap = Math.max(0, overlapEnd - overlapStart);
 
-      if (subCost <= insCost && subCost <= delCost) {
-        dp[i][j] = subCost;
-        ops[i][j] = cost === 1 ? "S" : "M";
-      } else if (insCost < delCost) {
-        dp[i][j] = insCost;
-        ops[i][j] = "I";
-      } else {
-        dp[i][j] = delCost;
-        ops[i][j] = "D";
+      if (overlap > 0) {
+        totalOverlapDuration += overlap;
+        if (refSeg.speaker === hypSeg.speaker) {
+          correctSpeakerOverlapDuration += overlap;
+        }
       }
     }
   }
 
-  let i = n,
-    j = m;
-  let speakerError = 0,
-    falseAlarm = 0,
-    missedSpeech = 0;
+  const hypTotalDuration = hypSegments.reduce(
+    (sum, seg) => sum + (seg.end - seg.start),
+    0
+  );
 
-  while (i > 0 || j > 0) {
-    const op = ops[i]?.[j];
-    if (op === "S") {
-      speakerError++;
-      i--;
-      j--;
-    } else if (op === "D") {
-      missedSpeech++;
-      i--;
-    } else if (op === "I") {
-      falseAlarm++;
-      j--;
-    } else {
-      // Match or start of grid
-      if (i > 0) i--;
-      if (j > 0) j--;
-    }
-  }
+  const speakerErrorDuration =
+    totalOverlapDuration - correctSpeakerOverlapDuration;
+  const missedSpeechDuration = refTotalDuration - totalOverlapDuration;
+  const falseAlarmDuration = hypTotalDuration - totalOverlapDuration;
 
-  const totalErrors = speakerError + falseAlarm + missedSpeech;
-  const der = n > 0 ? totalErrors / n : m > 0 ? Number.POSITIVE_INFINITY : 0;
+  const totalErrorDuration =
+    speakerErrorDuration + missedSpeechDuration + falseAlarmDuration;
+
+  const der = totalErrorDuration / refTotalDuration;
 
   return {
     der: isFinite(der) ? der : 0,
-    speakerError,
-    falseAlarm,
-    missedSpeech,
   };
 };
 
+// Utility to strip speaker and timestamps from transcript
 export const stripSpeakerTags = (text: string): string => {
   return text
     .split("\n")
     .map((line) => {
-      const colonIndex = line.indexOf(":");
-      return colonIndex !== -1 ? line.substring(colonIndex + 1).trim() : line;
+      const match = line.match(/^(\[[^\]]+\]\s*)?([^:]+):\s*(.*)$/);
+      return match ? match[3].trim() : line;
     })
     .join(" ")
     .trim();
