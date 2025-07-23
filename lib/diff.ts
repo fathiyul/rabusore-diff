@@ -310,7 +310,7 @@ const parseDiarization = (
         end = totalDuration;
       } else {
         // Fallback if no total duration or if last segment starts after total duration
-        end = start + 5; // Default duration for last segment
+        end = start + 3; // Default duration for last segment
       }
     }
     diarizationSegments.push({
