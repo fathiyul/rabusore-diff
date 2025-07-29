@@ -1,4 +1,4 @@
-import { DiffMatchPatch } from "diff-match-patch-ts";
+import { DiffMatchPatch, Diff } from "diff-match-patch-ts";
 
 interface DiffOp {
   type: "equal" | "delete" | "insert";
@@ -19,52 +19,32 @@ export interface Substitution {
 }
 
 const computeWordDiff = (oldWords: string[], newWords: string[]): DiffOp[] => {
-  const m = oldWords.length;
-  const n = newWords.length;
+  const dmp = new DiffMatchPatch();
+  const text1 = oldWords.join("\n");
+  const text2 = newWords.join("\n");
 
-  const lcs: number[][] = Array(m + 1)
-    .fill(null)
-    .map(() => Array(n + 1).fill(0));
+  const a = dmp.diff_linesToChars_(text1, text2);
+  const diffs = dmp.diff_main(a.chars1, a.chars2, false);
+  dmp.diff_charsToLines_(diffs, a.lineArray);
 
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      if (oldWords[i - 1] === newWords[j - 1]) {
-        lcs[i][j] = lcs[i - 1][j - 1] + 1;
-      } else {
-        lcs[i][j] = Math.max(lcs[i - 1][j], lcs[i][j - 1]);
-      }
+  // diff-match-patch sometimes leaves empty strings at the end of arrays.
+  // Clean them up.
+  for (const diff of diffs) {
+    if (diff[1].endsWith("\n")) {
+      diff[1] = diff[1].slice(0, -1);
     }
   }
 
-  const result: DiffOp[] = [];
-  let i = m,
-    j = n;
-
-  while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && oldWords[i - 1] === newWords[j - 1]) {
-      result.unshift({ type: "equal", items: [oldWords[i - 1]] });
-      i--;
-      j--;
-    } else if (j > 0 && (i === 0 || lcs[i][j - 1] >= lcs[i - 1][j])) {
-      result.unshift({ type: "insert", items: [newWords[j - 1]] });
-      j--;
-    } else if (i > 0) {
-      result.unshift({ type: "delete", items: [oldWords[i - 1]] });
-      i--;
+  return diffs.map(([type, text]): DiffOp => {
+    const words = text.split("\n").filter((w) => w.length > 0);
+    if (type === -1) {
+      return { type: "delete", items: words };
     }
-  }
-
-  const merged: DiffOp[] = [];
-  for (const op of result) {
-    const last = merged[merged.length - 1];
-    if (last && last.type === op.type) {
-      last.items.push(...op.items);
-    } else {
-      merged.push(op);
+    if (type === 1) {
+      return { type: "insert", items: words };
     }
-  }
-
-  return merged;
+    return { type: "equal", items: words };
+  });
 };
 
 export const computeDiffHtml = (
@@ -93,7 +73,7 @@ export const computeDiffHtml = (
     const newWords = splitIntoWords(newText);
     const diffs = computeWordDiff(oldWords, newWords);
 
-    return diffs
+    const html = diffs
       .map((diff) => {
         if (diff.type === "delete") {
           return `<span style="background-color: #fecaca;">${diff.items.join(
@@ -108,6 +88,11 @@ export const computeDiffHtml = (
         return diff.items.join("");
       })
       .join("");
+
+    // Re-insert newlines before timestamps for readability
+    return html.replace(/\[/g, (match, offset) => {
+      return offset > 0 ? "\n[" : "[";
+    });
   }
 };
 
@@ -117,7 +102,7 @@ export const extractSubstitutions = (
   newText: string
 ): Substitution[] => {
   const splitIntoWords = (text: string): string[] =>
-    text.split(/(\s+)/).filter((part) => part.length > 0);
+    text.trim().split(/\s+/).filter(Boolean);
   const oldWords = splitIntoWords(baseText);
   const newWords = splitIntoWords(newText);
   const diffs = computeWordDiff(oldWords, newWords);
@@ -129,19 +114,11 @@ export const extractSubstitutions = (
 
     // Check for substitution: a delete followed by an insert
     if (currentOp.type === "delete" && nextOp && nextOp.type === "insert") {
-      const deletedText = currentOp.items.join("").trim();
-      const insertedText = nextOp.items.join("").trim();
-
-      // Only create the interactive element if both parts are non-empty words
-      if (
-        deletedText &&
-        insertedText &&
-        !/\s/.test(deletedText) &&
-        !/\s/.test(insertedText)
-      ) {
+      // A substitution is a 1-to-1 word replacement.
+      if (currentOp.items.length === 1 && nextOp.items.length === 1) {
         substitutions.push({
-          source: insertedText,
-          target: deletedText,
+          source: nextOp.items[0],
+          target: currentOp.items[0],
         });
         i++; // Skip the next operation as it's already processed
       }
