@@ -233,7 +233,7 @@ export default function TranscriptionComparer() {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <Separator orientation="vertical" className="h-6" />
+          {/* <Separator orientation="vertical" className="h-6" />
           <Label>Diff Mode:</Label>
           <RadioGroup
             defaultValue="word"
@@ -248,7 +248,7 @@ export default function TranscriptionComparer() {
               <RadioGroupItem value="char" id="r-char" />
               <Label htmlFor="r-char">Character</Label>
             </div>
-          </RadioGroup>
+          </RadioGroup> */}
         </div>
       </header>
       <main
