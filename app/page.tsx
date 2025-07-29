@@ -72,7 +72,7 @@ export default function TranscriptionComparer() {
   const { panels, setPanels } = usePanelState();
   const [debouncedPanels, setDebouncedPanels] = useState(panels);
   const [diffMode, setDiffMode] = useState<"word" | "char">("word");
-  const [isNormalized, setIsNormalized] = useState(false);
+  const [isNormalized, setIsNormalized] = useState(true);
   const { wordMap, applyWordMap } = useWordMap();
   const { setAllSuggestions } = useSuggestedMaps();
 
