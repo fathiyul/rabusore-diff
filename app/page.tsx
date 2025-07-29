@@ -225,6 +225,7 @@ export default function TranscriptionComparer() {
                     id="normalized-mode"
                     checked={isNormalized}
                     onCheckedChange={setIsNormalized}
+                    className="data-[state=checked]:bg-amber-700"
                   />
                 </div>
               </TooltipTrigger>
