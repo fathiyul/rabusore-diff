@@ -18,12 +18,34 @@ Visit the hosted version at: **[diff.rabusore.com](https://diff.rabusore.com)**
 
 ## Running the App
 
-### Option 1: Desktop Application (Standalone .exe)
+### Option 1: Desktop Application - Tauri (Recommended, ~10MB)
 
-**Build once, run anywhere - no server needed!**
+**Lightweight, native desktop app - 98% smaller than Electron!**
 
 ```bash
-# Build the desktop app (do this once)
+# Build the Tauri app
+npm install
+npm run tauri:build-linux   # Linux (.deb, AppImage)
+# OR
+npm run tauri:build-win      # Windows (.exe installer)
+# OR
+npm run tauri:build-mac      # macOS (.dmg)
+
+# Run the app (Linux example)
+sudo dpkg -i src-tauri/target/release/bundle/deb/rabusore-diff_*.deb
+rabusore-diff
+# OR run directly
+./run-tauri.sh
+```
+
+Tauri uses your system's native webview instead of bundling Chromium, resulting in tiny executables (~10MB vs 787MB). See [TAURI-BUILD.md](TAURI-BUILD.md) for detailed instructions and prerequisites.
+
+### Option 2: Desktop Application - Electron (Full Compatibility, 787MB)
+
+**Build once, run anywhere - includes Chromium for consistent rendering.**
+
+```bash
+# Build the Electron app
 npm install
 npm run electron:build-linux   # Linux
 # OR
@@ -36,9 +58,9 @@ npm run electron:build-mac      # macOS
 # OR double-click the installer  # Windows/Mac
 ```
 
-The desktop app is a standalone executable that runs completely offline. See [BUILD-EXECUTABLE.md](BUILD-EXECUTABLE.md) for detailed instructions.
+The Electron desktop app bundles Chromium for consistent cross-platform rendering. See [BUILD-EXECUTABLE.md](BUILD-EXECUTABLE.md) for detailed instructions.
 
-### Option 2: Local Web Server (Development)
+### Option 3: Local Web Server (Development)
 
 ### Quick Start (Easiest Method)
 

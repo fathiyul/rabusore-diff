@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-RabuSore Diff is a transcription comparison tool built with Next.js that calculates Word Error Rate (WER) and Diarization Error Rate (DER) for evaluating transcription accuracy. The app supports both web deployment and standalone desktop executables via Electron.
+RabuSore Diff is a transcription comparison tool built with Next.js that calculates Word Error Rate (WER) and Diarization Error Rate (DER) for evaluating transcription accuracy. The app supports three deployment modes: web, Tauri desktop (lightweight ~10MB), and Electron desktop (full compatibility 787MB).
 
 ## Development Commands
 
@@ -16,31 +16,51 @@ npm start            # Start production Next.js server
 npm run lint         # Run ESLint
 ```
 
-### Static Export (for both hosting and Electron)
+### Static Export (for hosting, Tauri, and Electron)
 ```bash
 npm run export       # Build static export to out/ directory (same as npm run build)
 npm run serve        # Serve static files from out/ on http://localhost:3000
 ```
 
-### Desktop Application (Electron)
+### Desktop Application (Tauri - Recommended)
+```bash
+npm run tauri:dev                # Run Tauri app in dev mode
+npm run tauri:build              # Build for current platform
+npm run tauri:build-linux        # Build Linux .deb/.AppImage (~10MB)
+npm run tauri:build-win          # Build Windows .exe installer
+npm run tauri:build-mac          # Build macOS .dmg
+./run-tauri.sh                   # Quick launcher for built Linux app
+```
+
+**Important**: Tauri requires Rust toolchain. See TAURI-BUILD.md for setup. The Tauri build automatically runs `npm run export` via `beforeBuildCommand`.
+
+### Desktop Application (Electron - Legacy)
 ```bash
 npm run electron                 # Run Electron app locally (must build static export first)
-npm run electron:build-linux     # Build Linux executable to dist/
+npm run electron:build-linux     # Build Linux executable to dist/ (787MB)
 npm run electron:build-win       # Build Windows installer to dist/
 npm run electron:build-mac       # Build macOS .dmg to dist/
 ./run-app.sh                     # Quick launcher for built Linux app
 ```
 
-**Important**: Always run `npm run export` before building Electron executables. The Electron app serves files from the `out/` directory via an embedded HTTP server.
+**Important**: Always run `npm run export` before building Electron executables. The Electron app serves files from the `out/` directory via an embedded HTTP server on port 8273.
 
 ## Architecture
 
-### Dual Deployment Model
+### Multi-Platform Deployment Model
 
-The app supports two deployment targets with a shared codebase:
+The app supports three deployment targets with a shared codebase:
 
 1. **Web (Static Export)**: Next.js configured with `output: 'export'` generates static HTML/CSS/JS to `out/`
-2. **Desktop (Electron)**: `electron-main.js` runs an embedded HTTP server (serve-handler) on port 8273 to serve the `out/` directory, ensuring proper asset loading with absolute paths
+2. **Desktop (Tauri)**: Rust-based desktop app using system webview (~10MB)
+   - `src-tauri/tauri.conf.json` - Main configuration (window size, identifier, build commands)
+   - `src-tauri/src/main.rs` - Minimal Rust entry point
+   - Serves `out/` directory via Tauri's built-in asset handling (no HTTP server needed)
+   - Uses native webview: WebKit (Linux/macOS), WebView2 (Windows)
+3. **Desktop (Electron)**: Chromium-based desktop app (787MB)
+   - `electron-main.js` - Runs embedded HTTP server (serve-handler) on port 8273
+   - Serves `out/` directory with absolute path support
+   - Bundles full Chromium for consistent rendering
 
 ### Core State Management Pattern
 
