@@ -1,30 +1,41 @@
-# Transcription text comparison
+# RabuSore Diff - Transcription Comparison Tool
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+A Next.js application for comparing transcription texts and evaluating transcription accuracy.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/fathiyul-fahmis-projects/v0-transcription-text-comparison)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/ESqqarfkBbf)
+## Live Demo
 
-## Overview
+Visit the hosted version at: **[diff.rabusore.com](https://diff.rabusore.com)**
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+## Features
 
-## Deployment
+- Compare multiple transcription outputs against a ground truth
+- Calculate Word Error Rate (WER) and Diarization Error Rate (DER)
+- Word-level and character-level diff visualization
+- Customizable word mapping for variant normalization
+- Text normalization options (case, punctuation, whitespace)
+- Support for speaker-tagged transcriptions
+- Local storage persistence of all data
 
-Your project is live at:
+## Development
 
-**[https://vercel.com/fathiyul-fahmis-projects/v0-transcription-text-comparison](https://vercel.com/fathiyul-fahmis-projects/v0-transcription-text-comparison)**
+```bash
+# Install dependencies
+npm install
 
-## Build your app
+# Run development server
+npm run dev
 
-Continue building your app on:
+# Build for production
+npm run build
 
-**[https://v0.dev/chat/projects/ESqqarfkBbf](https://v0.dev/chat/projects/ESqqarfkBbf)**
+# Start production server
+npm start
+```
 
-## How It Works
+## Tech Stack
 
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+- Next.js 15 with App Router
+- TypeScript
+- Tailwind CSS
+- shadcn/ui components
+- diff-match-patch for text comparison

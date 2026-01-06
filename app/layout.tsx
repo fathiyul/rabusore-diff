@@ -12,8 +12,7 @@ const playfairDisplay = Playfair_Display({
 
 export const metadata: Metadata = {
   title: "RabuSore Diff",
-  description: "A tool to compare text.",
-  generator: "v0.dev",
+  description: "Compare transcription texts and evaluate accuracy with WER and DER metrics.",
 };
 
 export default function RootLayout({
