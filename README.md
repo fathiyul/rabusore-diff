@@ -6,6 +6,30 @@ A Next.js application for comparing transcription texts and evaluating transcrip
 
 Visit the hosted version at: **[diff.rabusore.com](https://diff.rabusore.com)**
 
+## Installation
+
+### Desktop Application (Pre-built)
+
+Download the latest release from [GitHub Releases](https://github.com/fathiyul/rabusore-diff/releases/latest)
+
+#### Debian/Ubuntu (.deb - 3.4 MB)
+```bash
+wget https://github.com/fathiyul/rabusore-diff/releases/download/v0.1.0/rabusore-diff_0.1.0_amd64.deb
+sudo dpkg -i rabusore-diff_0.1.0_amd64.deb
+rabusore-diff
+```
+
+#### Universal Linux (AppImage - 78 MB)
+```bash
+wget https://github.com/fathiyul/rabusore-diff/releases/download/v0.1.0/rabusore-diff_0.1.0_amd64.AppImage
+chmod +x rabusore-diff_0.1.0_amd64.AppImage
+./rabusore-diff_0.1.0_amd64.AppImage
+```
+
+### Web Application
+
+No installation needed! Use the hosted version at [diff.rabusore.com](https://diff.rabusore.com)
+
 ## Features
 
 - Compare multiple transcription outputs against a ground truth
